@@ -1,0 +1,40 @@
+digraph Scenario {
+  //COMMON
+  label="통합 시나리오 플로우 (데모 기준)"; labelloc=t; fontsize=16;
+
+  legend [shape=plaintext, fillcolor="white", style="", label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+      <TR><TD BGCOLOR="#e8f5e9">Robot A</TD><TD BGCOLOR="#e3f2fd">Robot B</TD><TD BGCOLOR="#eeeeee">서버</TD><TD BGCOLOR="#fffde7">사람</TD></TR>
+    </TABLE>>];
+
+  start [label="Start", shape=ellipse];
+  m0 [label="관리자: 작업 시작\n(구역 · 모드 선택)", fillcolor="#fffde7"];
+  a1 [label="A: 지정 경로 순회 시작", fillcolor="#e8f5e9"];
+  a2 [label="A: 층별 촬영 · AI 판정", fillcolor="#e8f5e9"];
+  d1 [label="병해충\n발견?", shape=diamond, style=filled, fillcolor="#fff7d6"];
+  s1 [label="서버: 위험구역 등록\n→ A·B 경로에서 우회 처리", fillcolor="#eeeeee"];
+  a3 [label="A: 수확 정보 발행\n(1-1구역 2층 좌표 · 3개 수확 가능)", fillcolor="#e8f5e9"];
+  s2 [label="서버: 수확 큐 갱신 · DB 저장", fillcolor="#eeeeee"];
+  b1 [label="B: 담당 작업자 추종", fillcolor="#e3f2fd"];
+  b2 [label="B: 화면에 수확 대상·병해 경고 표시\n요청 시 최단 경로 안내", fillcolor="#e3f2fd"];
+  w1 [label="작업자: 수확 후\n바구니 지정 구획에 적재", fillcolor="#fffde7"];
+  b3 [label="B: 적재 확인 · 이벤트 기록", fillcolor="#e3f2fd"];
+  d2 [label="적재\n완료?", shape=diamond, style=filled, fillcolor="#fff7d6"];
+  b4 [label="B: 집하장 이동 · 하역 · 복귀", fillcolor="#e3f2fd"];
+  d3 [label="수확 큐\n비었음?", shape=diamond, style=filled, fillcolor="#fff7d6"];
+  s3 [label="서버: 일일 리포트 생성\n(작업자·통로별 개수 · 병해 지도)", fillcolor="#eeeeee"];
+  end [label="End", shape=ellipse];
+
+  start -> m0 -> a1 -> a2 -> d1;
+  d1 -> s1 [label="Yes"];
+  d1 -> a3 [label="No"];
+  s1 -> a3;
+  a3 -> s2 -> b1 -> b2 -> w1 -> b3 -> d2;
+  d2 -> b4 [label="Yes"];
+  d2 -> d3 [label="No"];
+  b4 -> d3;
+  d3 -> b1 [label="No"];
+  d3 -> s3 [label="Yes"];
+  s3 -> end;
+  {rank=same; start; legend}
+}

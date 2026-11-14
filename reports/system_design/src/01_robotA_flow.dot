@@ -1,0 +1,43 @@
+digraph RobotA {
+  //COMMON
+  label="Robot A — 순회·수확 판단·병해충 탐지·정보 전달"; labelloc=t; fontsize=16;
+
+  start [label="Start", shape=ellipse];
+  init  [label="초기화\n(Nav2 · 카메라 · 서버 연결)"];
+  route [label="순회 경로 로드\n(웨이포인트: 구역-통로-층)"];
+  batt  [label="배터리\n충분?", shape=diamond, style=filled, fillcolor="#fff7d6"];
+  move  [label="다음 웨이포인트로 이동", fillcolor="#e8f5e9"];
+  arr   [label="도착?", shape=diamond, style=filled, fillcolor="#fff7d6"];
+  shot  [label="정지 후 층별 촬영\n(1층 … N층)", fillcolor="#e8f5e9"];
+  infer [label="AI 추론\n딸기 탐지 + 숙도 분류 + 병해 분류", fillcolor="#e8f5e9"];
+  dis   [label="병해충·이상\n발견?", shape=diamond, style=filled, fillcolor="#fff7d6"];
+  haz   [label="위험구역 등록\n(좌표 · 유형 · 사진)\n→ 서버/B 알림 · 우회(keep-out) 설정", fillcolor="#ffebee", color="#c62828"];
+  ripe  [label="완숙 과실\n있음?", shape=diamond, style=filled, fillcolor="#fff7d6"];
+  conf  [label="신뢰도 ≥\n임계값?", shape=diamond, style=filled, fillcolor="#fff7d6"];
+  flag  [label="'사람 확인 필요' 표시"];
+  pub   [label="수확 정보 발행\n{구역-통로-층, 좌표, 개수, 숙도, 신뢰도, 사진}", fillcolor="#e3f2fd", color="#1565c0"];
+  last  [label="마지막\n웨이포인트?", shape=diamond, style=filled, fillcolor="#fff7d6"];
+  sum   [label="순회 요약 전송\n(통로별 수확 예정량 · 위험구역 목록)", fillcolor="#e3f2fd", color="#1565c0"];
+  dock  [label="충전 스테이션 복귀"];
+  end   [label="End", shape=ellipse];
+
+  start -> init -> route -> batt;
+  batt -> move [label="Yes"];
+  batt -> dock [label="No"];
+  move -> arr;
+  arr -> move [label="No"];
+  arr -> shot [label="Yes"];
+  shot -> infer -> dis;
+  dis -> haz [label="Yes"];
+  dis -> ripe [label="No"];
+  haz -> ripe;
+  ripe -> conf [label="Yes"];
+  ripe -> last [label="No"];
+  conf -> pub [label="Yes"];
+  conf -> flag [label="No"];
+  flag -> pub;
+  pub -> last;
+  last -> batt [label="No"];
+  last -> sum [label="Yes"];
+  sum -> dock -> end;
+}

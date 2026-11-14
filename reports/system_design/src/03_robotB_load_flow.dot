@@ -1,0 +1,30 @@
+digraph RobotBLoad {
+  //COMMON
+  label="Robot B — 적재 확인·위치(구획) 확인·이력 기록"; labelloc=t; fontsize=16;
+
+  start [label="Start\n(적재 모듈)", shape=ellipse];
+  cap   [label="상단 카메라 프레임 캡처\n(위→아래 시점, 1~2 Hz)", fillcolor="#e3f2fd"];
+  grid  [label="바구니를 격자 구획으로 분할\n(예: 3×4 셀)"];
+  cnt   [label="셀별 딸기 탐지·개수 집계", fillcolor="#e3f2fd"];
+  chg   [label="이전 상태 대비\n변화?", shape=diamond, style=filled, fillcolor="#fff7d6"];
+  stab  [label="변화 안정화 확인\n(n프레임 연속 · 손 가림 제외)"];
+  zone  [label="지정 구획에\n적재?", shape=diamond, style=filled, fillcolor="#fff7d6"];
+  warn  [label="경고 표시\n'지정 위치 아님'", fillcolor="#ffebee", color="#c62828"];
+  log   [label="적재 이벤트 기록\n{시각, 작업자, 통로, 셀, 개수, 숙도}", fillcolor="#e8f5e9", color="#2e7d32"];
+  prog  [label="A 예상 수량 대비 진행률 계산\n→ 디스플레이·앱 전송", fillcolor="#e8f5e9", color="#2e7d32"];
+  full  [label="총 개수 ≥ N\n또는 셀 만재?", shape=diamond, style=filled, fillcolor="#fff7d6"];
+  done  [label="'적재 완료' 알림\n→ 셔틀(집하장) 요청", fillcolor="#e3f2fd", color="#1565c0"];
+  end   [label="End", shape=ellipse];
+
+  start -> cap -> grid -> cnt -> chg;
+  chg -> cap [label="No"];
+  chg -> stab [label="Yes"];
+  stab -> zone;
+  zone -> log [label="Yes"];
+  zone -> warn [label="No"];
+  warn -> log;
+  log -> prog -> full;
+  full -> cap [label="No"];
+  full -> done [label="Yes"];
+  done -> end;
+}

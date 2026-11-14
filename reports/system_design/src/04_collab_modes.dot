@@ -1,0 +1,40 @@
+digraph Collab {
+  //COMMON
+  label="로봇 A·B 협업 방식 — 순차 모드(1단계) vs 동시 모드(2단계)"; labelloc=t; fontsize=16;
+  compound=true; newrank=true;
+
+  subgraph cluster_seq {
+    label="① 순차 모드 (MVP · 시연 안정성 우선)"; fontsize=14; style="rounded"; color="#2e7d32";
+    s0 [label="Start", shape=ellipse];
+    s1 [label="A: 전체 경로 순회", fillcolor="#e8f5e9"];
+    s2 [label="A: 수확 목록·위험구역 확정", fillcolor="#e8f5e9"];
+    s3 [label="서버: 목록 저장\n→ B에 일괄 전달", fillcolor="#eeeeee"];
+    s4 [label="B: 작업자 추종 시작\n목록 순서대로 안내·적재 확인", fillcolor="#e3f2fd"];
+    s5 [label="목록\n완료?", shape=diamond, style=filled, fillcolor="#fff7d6"];
+    s6 [label="End", shape=ellipse];
+    s0 -> s1 -> s2 -> s3 -> s4 -> s5;
+    s5 -> s4 [label="No"];
+    s5 -> s6 [label="Yes"];
+  }
+
+  subgraph cluster_con {
+    label="② 동시 모드 (실시간 · 확장)"; fontsize=14; style="rounded"; color="#1565c0";
+    c0 [label="Start", shape=ellipse];
+    c1 [label="A: 순회 중 탐지 즉시\n이벤트 발행", fillcolor="#e8f5e9"];
+    c2 [label="서버: 수확 큐에 추가\n우선순위 = 거리·숙도·작업자 위치", fillcolor="#eeeeee"];
+    c3 [label="B: 현재 작업자 기준\n다음 대상 수신·안내", fillcolor="#e3f2fd"];
+    c4 [label="같은 통로\n점유 충돌?", shape=diamond, style=filled, fillcolor="#fff7d6"];
+    c5 [label="통로 점유 예약\nA는 건너뛰고 나중에 재방문", fillcolor="#eeeeee"];
+    c6 [label="큐 비었고\nA 순회 끝?", shape=diamond, style=filled, fillcolor="#fff7d6"];
+    c7 [label="End", shape=ellipse];
+    c0 -> c1 -> c2 -> c3 -> c4;
+    c4 -> c5 [label="Yes"];
+    c4 -> c6 [label="No"];
+    c5 -> c6;
+    c6 -> c1 [label="No"];
+    c6 -> c7 [label="Yes"];
+  }
+
+  {rank=same; s0; c0}
+  {rank=same; s6; c7}
+}

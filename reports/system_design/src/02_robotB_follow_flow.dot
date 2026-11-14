@@ -1,0 +1,53 @@
+digraph RobotBFollow {
+  //COMMON
+  label="Robot B — 작업자 추종·정보 시각화·경로 안내"; labelloc=t; fontsize=16;
+
+  start [label="Start", shape=ellipse];
+  init  [label="초기화\n(Nav2 · 전방 카메라 · 디스플레이 · 서버 연결)"];
+  reg   [label="담당 작업자 등록\n(태그/QR + 외형 특징 저장)"];
+  det   [label="사람 검출", fillcolor="#e3f2fd"];
+  who   [label="등록된\n작업자?", shape=diamond, style=filled, fillcolor="#fff7d6"];
+  tout  [label="상실 시간\n> T초?", shape=diamond, style=filled, fillcolor="#fff7d6"];
+  alarm [label="정지 · 관리자/작업자 알림", fillcolor="#ffebee", color="#c62828"];
+  dist  [label="거리 측정 →\n안전거리(0.5~1.0 m) 유지 제어", fillcolor="#e3f2fd"];
+  near  [label="장애물·사람\n< 0.3 m?", shape=diamond, style=filled, fillcolor="#fff7d6"];
+  stop  [label="즉시 정지", fillcolor="#ffebee", color="#c62828"];
+  cross [label="가림 또는\n다른 작업자(C) 교차?", shape=diamond, style=filled, fillcolor="#fff7d6"];
+  reid  [label="정지 후 재식별(re-ID)\n기존 작업자 특징과 비교"];
+  same  [label="기존\n작업자?", shape=diamond, style=filled, fillcolor="#fff7d6"];
+  msg   [label="A의 새 정보\n수신?", shape=diamond, style=filled, fillcolor="#fff7d6"];
+  disp  [label="디스플레이·앱 갱신\n(수확 위치 · 개수 · 병해 경고)", fillcolor="#e8f5e9", color="#2e7d32"];
+  guide [label="안내 요청?", shape=diamond, style=filled, fillcolor="#fff7d6"];
+  path  [label="최단 경로 계산·안내\n(위험구역 우회)", fillcolor="#e3f2fd"];
+  full  [label="적재 완료\n신호?", shape=diamond, style=filled, fillcolor="#fff7d6"];
+  shut  [label="집하장 이동 → 하역\n→ 작업자에게 복귀", fillcolor="#e3f2fd"];
+  done  [label="작업\n종료?", shape=diamond, style=filled, fillcolor="#fff7d6"];
+  end   [label="End", shape=ellipse];
+
+  start -> init -> reg -> det -> who;
+  who -> dist [label="Yes"];
+  who -> tout [label="No"];
+  tout -> det [label="No"];
+  tout -> alarm [label="Yes"];
+  alarm -> det;
+  dist -> near;
+  near -> stop [label="Yes"];
+  stop -> det;
+  near -> cross [label="No"];
+  cross -> reid [label="Yes"];
+  reid -> same;
+  same -> dist [label="Yes"];
+  same -> tout [label="No"];
+  cross -> msg [label="No"];
+  msg -> disp [label="Yes"];
+  msg -> guide [label="No"];
+  disp -> guide;
+  guide -> path [label="Yes"];
+  guide -> full [label="No"];
+  path -> full;
+  full -> shut [label="Yes"];
+  full -> done [label="No"];
+  shut -> done;
+  done -> det [label="No"];
+  done -> end [label="Yes"];
+}
