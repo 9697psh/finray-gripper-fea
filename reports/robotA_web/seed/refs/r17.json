@@ -1,0 +1,1 @@
+{"order": 17, "kind": "문서", "title": "Nav2 구조와 코스트맵 (Day3 강의)", "path": "Day3_new_v2_jazzy.pdf", "url": "https://github.com/kimandreas/to_students/blob/main/Day3_new_v2_jazzy.pdf", "use": "BT Navigator · Planner(전역 코스트맵) · Controller(지역 코스트맵) 역할 이해", "limits": "저장소에 장애물 회피 전용 예제는 없음. Nav2 코스트맵 파라미터(팽창 반경 등) 조정으로 해결해야 함", "howto": "", "taskIds": ["t05"]}

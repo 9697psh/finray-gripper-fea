@@ -1,0 +1,573 @@
+<title>로봇 A 작업 노트</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: sticky top bar with view tabs; each view is a single column of panels; task detail opens as a side sheet. */
+:root {
+  --bg: #f4f6f3; --panel: #ffffff; --panel-2: #eef2ec; --line: #d9e0d6; --fg: #17201b; --muted: #5b6a61;
+  --accent: #2f8a5a; --accent-ink: #ffffff; --accent-soft: #dcefe3;
+  --plan: #9fd08a; --doing: #ffd966; --done: #7fb2e5; --blocked: #f2a59c; --spare: #f9cb9c;
+  --ok: #2f8a5a; --warn: #b7791f; --bad: #c0392b;
+  --code-bg: #f1f4f0; --shadow: 0 1px 2px rgba(23,32,27,.06), 0 6px 18px rgba(23,32,27,.06);
+  --font: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+  --mono: "JetBrains Mono", "D2Coding", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #111613; --panel: #18201b; --panel-2: #1e2822; --line: #2c3a31; --fg: #e5ece7; --muted: #9aab9f;
+  --accent: #5cc48a; --accent-ink: #0d1510; --accent-soft: #1f3a2a;
+  --plan: #4f7f3f; --doing: #8a7425; --done: #34628f; --blocked: #8a3a33; --spare: #8a5a30;
+  --ok: #5cc48a; --warn: #e0b04f; --bad: #ef7d6f; --code-bg: #121915; --shadow: none; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #111613; --panel: #18201b; --panel-2: #1e2822; --line: #2c3a31; --fg: #e5ece7; --muted: #9aab9f;
+  --accent: #5cc48a; --accent-ink: #0d1510; --accent-soft: #1f3a2a;
+  --plan: #4f7f3f; --doing: #8a7425; --done: #34628f; --blocked: #8a3a33; --spare: #8a5a30;
+  --ok: #5cc48a; --warn: #e0b04f; --bad: #ef7d6f; --code-bg: #121915; --shadow: none; color-scheme: dark }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 14px; line-height: 1.55; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--panel); }
+.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--panel); border-bottom: 1px solid var(--line); }
+.topin { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding-block: 10px; }
+.brand { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.brand b { font-size: 17px; letter-spacing: -.01em; }
+.brand span { color: var(--muted); font-size: 12px; }
+nav.tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-left: auto; }
+nav.tabs a { text-decoration: none; color: var(--muted); padding: 6px 12px; border-radius: 999px; font-weight: 500; font-size: 13px; }
+nav.tabs a[aria-current="page"] { background: var(--accent-soft); color: var(--fg); }
+nav.tabs a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible, .cell:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+main { padding-block: 20px 60px; display: grid; gap: 18px; }
+h1, h2, h3 { margin: 0; text-wrap: balance; letter-spacing: -.01em; }
+h2 { font-size: 18px; } h3 { font-size: 15px; }
+.muted { color: var(--muted); } .small { font-size: 12px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-width: 0; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.grid { display: grid; gap: 14px; }
+.g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 880px) { .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .g2 { grid-template-columns: 1fr; } }
+.stat { display: grid; gap: 2px; }
+.stat .n { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stat .l { color: var(--muted); font-size: 12px; letter-spacing: .02em; }
+.bar { height: 6px; background: var(--panel-2); border-radius: 99px; overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--accent); }
+.pill { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; border: 1px solid transparent; }
+.s-예정 { background: var(--panel-2); color: var(--muted); border-color: var(--line); }
+.s-진행 { background: var(--doing); color: #2b2205; }
+.s-완료 { background: var(--done); color: #08223c; }
+.s-막힘 { background: var(--blocked); color: #3a0d08; }
+:root[data-theme="dark"] .s-진행, :root[data-theme="dark"] .s-완료, :root[data-theme="dark"] .s-막힘 { color: var(--fg); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .s-진행, :root:not([data-theme="light"]) .s-완료, :root:not([data-theme="light"]) .s-막힘 { color: var(--fg); } }
+.r-성공 { color: var(--ok); } .r-실패 { color: var(--bad); } .r-부분 { color: var(--warn); }
+.tag { font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--panel-2); color: var(--muted); border: 1px solid var(--line); white-space: nowrap; }
+button, .btn { font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 7px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+button.ghost { background: transparent; }
+button:disabled { opacity: .5; cursor: not-allowed; }
+input, select, textarea { font: inherit; font-size: 13px; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 7px 9px; width: 100%; min-width: 0; }
+textarea { resize: vertical; min-height: 70px; }
+textarea.code, pre, code { font-family: var(--mono); font-size: 12px; }
+label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); font-weight: 500; }
+.notice { padding: 10px 12px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--line); font-size: 13px; }
+.notice.warn { border-color: var(--warn); }
+.empty { padding: 22px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; }
+/* schedule grid */
+.sched { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+.sched table { border-collapse: collapse; min-width: 1080px; width: 100%; }
+.sched th, .sched td { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; font-size: 12.5px; }
+.sched thead th { position: sticky; top: 0; background: var(--panel-2); font-weight: 600; z-index: 1; }
+.sched th.day { text-align: center; border-left: 1px solid var(--line); }
+.sched th.part { text-align: center; font-weight: 500; color: var(--muted); }
+.sched td.task { min-width: 300px; }
+.sched td.own, .sched th.own { white-space: nowrap; min-width: 84px; }
+.sched td.st { white-space: nowrap; }
+.sched td.task button { all: unset; cursor: pointer; font-weight: 500; }
+.sched td.task button:hover { text-decoration: underline; }
+.sched td.c { padding: 3px; width: 52px; }
+.sched td.dstart, .sched th.dstart { border-left: 1px solid var(--line); }
+.cell { width: 100%; height: 26px; border-radius: 5px; border: 1px dashed transparent; display: grid; place-items: center; font-size: 11.5px; font-weight: 600; cursor: pointer; background: transparent; color: var(--fg); padding: 0; }
+.cell:hover { border-color: var(--line); }
+.cell.k-계획 { background: var(--plan); color: #12260a; } .cell.k-진행 { background: var(--doing); color: #2b2205; }
+.cell.k-완료 { background: var(--done); color: #08223c; } .cell.k-예비 { background: var(--spare); color: #3a2208; }
+:root[data-theme="dark"] .cell[class*="k-"] { color: var(--fg); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .cell[class*="k-"] { color: var(--fg); } }
+.now { box-shadow: inset 0 -3px 0 var(--accent); }
+tr.team-B td { opacity: .78; }
+tr.groupsep td { background: var(--panel-2); font-weight: 600; font-size: 12px; color: var(--muted); }
+/* cards */
+.cards { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.card h3 { font-size: 14px; }
+.path { font-family: var(--mono); font-size: 12px; color: var(--muted); word-break: break-all; }
+dl.kv { display: grid; grid-template-columns: 86px 1fr; gap: 4px 10px; margin: 0; font-size: 13px; }
+dl.kv dt { color: var(--muted); font-size: 12px; } dl.kv dd { margin: 0; min-width: 0; }
+pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; overflow: auto; max-height: 360px; margin: 0; white-space: pre; }
+.diff { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; overflow: auto; max-height: 420px; font-family: var(--mono); font-size: 12px; }
+.diff div { white-space: pre; padding: 0 10px; }
+.diff .add { background: color-mix(in srgb, var(--ok) 18%, transparent); }
+.diff .del { background: color-mix(in srgb, var(--bad) 16%, transparent); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--bad) 50%, transparent); }
+.flowmap { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 880px) { .flowmap { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.flow { border: 1px solid var(--line); border-radius: 8px; padding: 10px; display: grid; gap: 6px; background: var(--panel); min-width: 0; }
+.flow b { font-size: 13px; }
+/* side sheet + modal */
+.sheet-bg, .modal-bg { position: fixed; inset: 0; background: rgba(10,16,12,.38); z-index: 40; }
+.sheet { position: fixed; top: 0; right: 0; bottom: 0; width: min(760px, 100%); background: var(--bg); z-index: 41; overflow-y: auto; border-left: 1px solid var(--line);
+  padding: calc(16px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) calc(40px + env(safe-area-inset-bottom, 0px)) 16px; display: grid; gap: 14px; align-content: start; }
+.modal { position: fixed; z-index: 51; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(720px, calc(100% - 24px)); max-height: calc(100% - 40px); overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; display: grid; gap: 12px; }
+.modal-bg { z-index: 50; }
+.formgrid { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
+.formgrid .full { grid-column: 1 / -1; }
+@media (max-width: 600px) { .formgrid { grid-template-columns: 1fr; } }
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 8px 14px; border-radius: 8px; z-index: 60; font-size: 13px; }
+.story { display: grid; gap: 10px; }
+.story .step { display: grid; grid-template-columns: 96px 1fr; gap: 10px; align-items: start; }
+.story .step > span { font-size: 11px; letter-spacing: .04em; color: var(--muted); font-weight: 600; padding-top: 2px; }
+.thumbs { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+.thumbs figure { margin: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--panel); }
+.thumbs img { display: block; width: 100%; height: 130px; object-fit: cover; background: var(--panel-2); }
+.thumbs figcaption { padding: 6px 8px; font-size: 12px; }
+.list { display: grid; gap: 8px; }
+.item { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--panel); display: grid; gap: 6px; min-width: 0; }
+.item header { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.item header b { font-size: 13.5px; }
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.toolbar input, .toolbar select { width: auto; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<header class="top"><div class="wrap topin">
+  <div class="brand"><b>로봇 A 작업 노트</b><span id="meta">탐색·인식 연동 AMR · 11월 18일(수) 저녁 마감</span></div>
+  <nav class="tabs" aria-label="화면">
+    <a href="#overview" data-v="overview">현황</a>
+    <a href="#schedule" data-v="schedule">일정</a>
+    <a href="#refs" data-v="refs">참고 코드</a>
+    <a href="#attempts" data-v="attempts">시도 기록</a>
+    <a href="#logs" data-v="logs">실행 로그</a>
+    <a href="#deck" data-v="deck">발표 자료</a>
+  </nav>
+</div></header>
+
+<div class="wrap"><main id="app"><div class="empty">작업 데이터를 불러오는 중입니다.</div></main></div>
+<div id="layer"></div>
+
+<script>
+(() => {
+  // ---------- constants ----------
+  const DAYS = [16, 17, 18, 19, 20];
+  const DOW = { 16: '월', 17: '화', 18: '수', 19: '목', 20: '금' };
+  const PARTS = ['오전', '오후', '저녁'];
+  const STATUSES = ['예정', '진행', '완료', '막힘'];
+  const CELL_CYCLE = ['', '계획', '진행', '완료', '예비'];
+  const CHARTS = ['전체', '①', '②', '③', '④', '⑤', '⑥'];
+  const CHART_NAMES = { '전체': '전체 흐름', '①': '섹터 이동', '②': '사진 전송·결과 받기', '③': 'B에 작업 정보 전송', '④': '미수확 재확인', '⑤': '작업 마무리', '⑥': '비상 상황 처리' };
+  const REPO = 'https://github.com/kimandreas/to_students/blob/main/';
+  const DEADLINE = new Date('2026-11-18T22:00:00+09:00');
+
+  // ---------- state ----------
+  const S = { tasks: [], refs: [], attempts: [], logs: [], media: [], loaded: {}, me: null, canWrite: null, readOnly: false, names: {} };
+  let db = null, user = null, assets = null, downloads = null;
+
+  // ---------- helpers ----------
+  const $ = (s, el = document) => el.querySelector(s);
+  const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const byId = (arr, id) => arr.find(x => x.id === id);
+  const fmtTime = iso => { if (!iso) return ''; const d = new Date(iso); return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+  const slotKey = (d, p) => `${d}-${p}`;
+  function nowSlot() {
+    const k = new Date(Date.now() + 9 * 3600e3); // KST
+    const d = k.getUTCDate(), h = k.getUTCHours(), m = k.getUTCMonth();
+    if (m !== 10) return null;
+    return slotKey(d, h < 12 ? 0 : h < 18 ? 1 : 2);
+  }
+  function toast(msg) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2600); }
+  const authorName = id => (id && S.names[id]) || (id ? '팀원' : '');
+  async function resolveNames() {
+    if (!user) return;
+    const ids = [...new Set([...S.attempts, ...S.logs, ...S.media, ...S.tasks].map(x => x.author || x.updatedBy).filter(Boolean))].filter(id => !(id in S.names));
+    if (!ids.length) return;
+    try { const ps = await user.profiles(ids); ids.forEach(id => { S.names[id] = (ps[id] && ps[id].name) || '팀원'; }); render(); } catch (e) { /* names stay generic */ }
+  }
+  function lineDiff(a, b) {
+    const A = String(a || '').split('\n'), B = String(b || '').split('\n');
+    if (A.length * B.length > 250000) return null;
+    const n = A.length, m = B.length, L = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+    for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) L[i][j] = A[i] === B[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+    const out = []; let i = 0, j = 0;
+    while (i < n && j < m) { if (A[i] === B[j]) { out.push([' ', A[i]]); i++; j++; } else if (L[i + 1][j] >= L[i][j + 1]) { out.push(['-', A[i++]]); } else { out.push(['+', B[j++]]); } }
+    while (i < n) out.push(['-', A[i++]]); while (j < m) out.push(['+', B[j++]]);
+    return out;
+  }
+  function diffHtml(a, b) {
+    const d = lineDiff(a, b);
+    if (!d) return '<div class="notice">코드가 너무 길어 비교를 생략했습니다.</div>';
+    const add = d.filter(x => x[0] === '+').length, del = d.filter(x => x[0] === '-').length;
+    return `<div class="small muted">추가 ${add}줄 · 삭제 ${del}줄</div><div class="diff">${d.map(([k, t]) => `<div class="${k === '+' ? 'add' : k === '-' ? 'del' : ''}">${k === ' ' ? '  ' : k + ' '}${esc(t)}</div>`).join('')}</div>`;
+  }
+  const sortTasks = arr => [...arr].sort((a, b) => (a.team || 'A').localeCompare(b.team || 'A') || (a.order || 0) - (b.order || 0));
+  const aTasks = () => sortTasks(S.tasks.filter(t => (t.team || 'A') === 'A'));
+
+  // ---------- writes ----------
+  async function write(fn, okMsg) {
+    if (!db) { toast('저장소에 연결되지 않아 저장할 수 없습니다.'); return false; }
+    if (S.readOnly) { toast('보기 권한만 있어 저장할 수 없습니다.'); return false; }
+    try { await fn(); if (okMsg) toast(okMsg); return true; }
+    catch (e) {
+      if (e && e.code === 'invalid_argument') { S.readOnly = true; toast('이 계정은 기록을 저장할 권한이 없습니다. 공유 설정에서 참여자 이상 권한이 필요합니다.'); render(); }
+      else if (e && e.code === 'quota_exceeded') toast('저장 공간이 가득 찼습니다. 오래된 로그를 지운 뒤 다시 시도하세요.');
+      else toast('저장하지 못했습니다. 잠시 후 다시 시도하세요.');
+      return false;
+    }
+  }
+  const stamp = () => ({ updatedAt: new Date().toISOString(), updatedBy: S.me || null });
+
+  // ---------- views ----------
+  function view() { const h = location.hash.replace('#', ''); if (h.startsWith('task-')) return 'task'; return ['overview', 'schedule', 'refs', 'attempts', 'logs', 'deck'].includes(h) ? h : 'overview'; }
+  function render() {
+    const v = view();
+    document.querySelectorAll('nav.tabs a').forEach(a => a.setAttribute('aria-current', a.dataset.v === (v === 'task' ? lastView : v) ? 'page' : 'false'));
+    const app = $('#app');
+    const ready = ['tasks', 'refs', 'attempts', 'logs', 'media'].every(k => S.loaded[k]);
+    let pre = '';
+    if (!db && S.dbChecked) pre = '<div class="notice warn">공유 저장소를 쓸 수 없는 화면입니다(로그인하지 않았거나 권한이 없음). 기록 보기·저장이 막혀 있습니다.</div>';
+    else if (S.timedOut && !ready) pre = '<div class="notice warn">저장소 응답이 늦습니다. 잠시 후 자동으로 채워집니다.</div>';
+    else if (S.readOnly) pre = '<div class="notice">보기 전용입니다. 기록을 남기려면 공유 설정에서 참여자(Contributor) 이상 권한을 받아야 합니다.</div>';
+    const body = { overview: vOverview, schedule: vSchedule, refs: vRefs, attempts: vAttempts, logs: vLogs, deck: vDeck, task: vOverview }[v === 'task' ? (lastView || 'overview') : v]();
+    app.innerHTML = pre + body;
+    if (v === 'task') openTask(location.hash.slice(6)); else closeSheet();
+  }
+  let lastView = 'overview';
+
+  function vOverview() {
+    const T = aTasks();
+    if (!T.length) return emptyStore();
+    const done = T.filter(t => t.status === '완료').length, doing = T.filter(t => t.status === '진행').length, blocked = T.filter(t => t.status === '막힘').length;
+    const fails = S.attempts.filter(a => a.result === '실패').length;
+    const left = DEADLINE - Date.now(), hrs = Math.max(0, Math.floor(left / 3600e3));
+    const ns = nowSlot();
+    const nowTasks = ns ? T.filter(t => t.slots && t.slots[ns]) : [];
+    const phase = ['설계', '구현', '테스트'].map(p => { const ts = T.filter(t => t.phase === p); const d = ts.filter(t => t.status === '완료').length; return `<div class="stat"><span class="l">${p}</span><span class="n">${d}<span class="muted small"> / ${ts.length}</span></span><div class="bar"><i style="width:${ts.length ? d / ts.length * 100 : 0}%"></i></div></div>`; }).join('');
+    const flows = CHARTS.map(c => { const ts = T.filter(t => (t.charts || []).includes(c)); const d = ts.filter(t => t.status === '완료').length; return `<div class="flow"><b>${c} ${CHART_NAMES[c]}</b><div class="bar"><i style="width:${ts.length ? d / ts.length * 100 : 0}%"></i></div><span class="small muted">${ts.length ? `${d}/${ts.length} 작업 완료` : '연결된 작업 없음'}</span></div>`; }).join('');
+    const recentFails = S.attempts.filter(a => a.result === '실패').sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 4);
+    return `
+    <section class="grid g4">
+      <div class="panel stat"><span class="l">완료한 작업</span><span class="n">${done}<span class="muted small"> / ${T.length}</span></span><div class="bar"><i style="width:${done / T.length * 100}%"></i></div></div>
+      <div class="panel stat"><span class="l">진행 중 · 막힘</span><span class="n">${doing} · <span class="r-실패">${blocked}</span></span><span class="small muted">막힌 작업은 시도 기록에 원인을 남겨 주세요</span></div>
+      <div class="panel stat"><span class="l">시도 · 실패 · 로그</span><span class="n">${S.attempts.length} · <span class="r-실패">${fails}</span> · ${S.logs.length}</span><span class="small muted">발표 자료로 모이는 기록</span></div>
+      <div class="panel stat"><span class="l">마감까지 (18일 수 저녁)</span><span class="n">${left > 0 ? `${Math.floor(hrs / 24)}일 ${hrs % 24}시간` : '마감 지남'}</span><span class="small muted">19일 오전은 B 연동 예비 칸</span></div>
+    </section>
+    <section class="panel grid" style="gap:12px"><div class="row"><h2>단계별 진행</h2></div><div class="grid g4" style="grid-template-columns:repeat(3,minmax(0,1fr))">${phase}</div></section>
+    <section class="panel grid" style="gap:12px"><div class="row"><h2>흐름도 차트별 진행</h2><span class="small muted">로봇 A 흐름도(전체 흐름, ①~⑥)와 작업을 연결한 진행률</span></div><div class="flowmap">${flows}</div></section>
+    <section class="grid g2">
+      <div class="panel grid" style="gap:10px"><h2>지금 칸에 잡힌 작업 <span class="small muted">${ns ? labelSlot(ns) : ''}</span></h2>${nowTasks.length ? `<div class="list">${nowTasks.map(taskRow).join('')}</div>` : '<div class="empty">지금 시간대에 잡힌 작업이 없습니다.</div>'}</div>
+      <div class="panel grid" style="gap:10px"><h2>최근 실패한 시도</h2>${recentFails.length ? `<div class="list">${recentFails.map(attemptMini).join('')}</div>` : '<div class="empty">아직 실패 기록이 없습니다. 실패한 시도도 기록해 두면 발표의 "문제 → 해결" 근거가 됩니다.</div>'}</div>
+    </section>`;
+  }
+  const labelSlot = k => { const [d, p] = k.split('-'); return `${d}일(${DOW[d] || ''}) ${PARTS[p]}`; };
+  function taskRow(t) {
+    return `<div class="item"><header><span class="pill s-${esc(t.status || '예정')}">${esc(t.status || '예정')}</span><b>${esc(t.title)}</b><span class="tag">${esc(t.phase)}</span><span class="small muted">${esc(t.owner || '')}</span><span style="margin-left:auto"><button class="ghost" data-open="${esc(t.id)}">열기</button></span></header></div>`;
+  }
+  function attemptMini(a) {
+    const t = byId(S.tasks, a.taskId);
+    return `<div class="item"><header><b class="r-${esc(a.result)}">${esc(a.result)}</b><b>${esc(a.title || '(제목 없음)')}</b><span class="small muted">${esc(t ? t.title : '')}</span><span style="margin-left:auto"><button class="ghost" data-open="${esc(a.taskId)}">작업 열기</button></span></header>${a.reason ? `<div class="small"><span class="muted">원인 </span>${esc(a.reason)}</div>` : ''}</div>`;
+  }
+  function emptyStore() {
+    return `<div class="empty">아직 작업 목록이 없습니다. 작업이 등록되면 여기에 진행 현황이 나타납니다.${db && !S.readOnly ? '<br><br><button class="primary" data-act="newtask">작업 추가</button>' : ''}</div>`;
+  }
+
+  function vSchedule() {
+    const T = sortTasks(S.tasks);
+    if (!T.length) return emptyStore();
+    const ns = nowSlot();
+    const showB = S.showB !== false;
+    const head1 = DAYS.map(d => `<th colspan="3" class="day dstart">11월 ${d}일 (${DOW[d]})</th>`).join('');
+    const head2 = DAYS.map(d => PARTS.map((p, i) => `<th class="part ${i === 0 ? 'dstart' : ''} ${slotKey(d, i) === ns ? 'now' : ''}">${p}</th>`).join('')).join('');
+    const rows = []; let team = null;
+    T.forEach(t => {
+      const tm = t.team || 'A';
+      if (tm === 'B' && !showB) return;
+      if (tm !== team) { team = tm; rows.push(`<tr class="groupsep"><td colspan="${4 + 15}">${tm === 'A' ? '로봇 A (우리 팀)' : '로봇 B (연동 일정 참고용)'}</td></tr>`); }
+      const cells = DAYS.map(d => PARTS.map((p, i) => { const k = slotKey(d, i), v = (t.slots || {})[k] || ''; return `<td class="c ${i === 0 ? 'dstart' : ''}"><button class="cell ${v ? 'k-' + v : ''} ${k === ns ? 'now' : ''}" data-cell="${esc(t.id)}|${k}" aria-label="${esc(t.title)} ${labelSlot(k)} ${v || '비어 있음'}" ${tm === 'B' ? 'disabled' : ''}>${v}</button></td>`; }).join('')).join('');
+      rows.push(`<tr class="team-${tm}"><td><span class="tag">${esc(t.phase)}</span></td><td class="task"><button data-open="${esc(t.id)}">${esc(t.title)}</button></td><td class="small own">${esc(t.owner || '')}</td><td class="st"><span class="pill s-${esc(t.status || '예정')}">${esc(t.status || '예정')}</span></td>${cells}</tr>`);
+    });
+    return `<section class="grid" style="gap:10px">
+      <div class="toolbar"><h2>일정</h2><span class="small muted">칸을 누르면 계획 → 진행 → 완료 → 예비 → 비움 순으로 바뀝니다. 밑줄 칸이 지금 시간대입니다.</span>
+      <span style="margin-left:auto" class="row"><label class="row" style="display:flex;gap:6px;color:var(--fg)"><input id="showB" type="checkbox" style="width:auto" ${showB ? 'checked' : ''}> 로봇 B 일정 보기</label>${db && !S.readOnly ? '<button data-act="newtask">작업 추가</button>' : ''}</span></div>
+      <div class="sched"><table><thead><tr><th rowspan="2">구분</th><th rowspan="2">세부항목</th><th rowspan="2" class="own">담당자</th><th rowspan="2" class="own">진행 상황</th>${head1}</tr><tr>${head2}</tr></thead><tbody>${rows.join('')}</tbody></table></div>
+    </section>`;
+  }
+
+  function vRefs() {
+    const R = [...S.refs].sort((a, b) => (a.order || 0) - (b.order || 0));
+    if (!R.length) return `<div class="empty">등록된 참고 코드가 없습니다.</div>`;
+    return `<section class="grid" style="gap:12px"><div class="toolbar"><h2>참고 코드</h2><span class="small muted">강의 저장소 kimandreas/to_students에서 로봇 A 작업에 쓸 수 있는 코드와, 그대로 쓰면 안 되는 이유(강화 포인트)</span>${db && !S.readOnly ? '<span style="margin-left:auto"><button data-act="newref">참고 자료 추가</button></span>' : ''}</div>
+    <div class="cards">${R.map(refCard).join('')}</div></section>`;
+  }
+  function refCard(r) {
+    const tasks = (r.taskIds || []).map(id => byId(S.tasks, id)).filter(Boolean);
+    const used = S.attempts.filter(a => a.refId === r.id).length;
+    return `<article class="card"><div class="row"><span class="tag">${esc(r.kind || '코드')}</span>${used ? `<span class="tag">시도 ${used}건에서 사용</span>` : ''}</div>
+      <h3>${esc(r.title)}</h3>${r.path ? `<a class="path" href="${esc(r.url || REPO + r.path)}" target="_blank" rel="noopener">${esc(r.path)}</a>` : ''}
+      <dl class="kv"><dt>쓰는 곳</dt><dd>${esc(r.use || '')}</dd><dt>그대로 쓰면</dt><dd>${esc(r.limits || '')}</dd>${r.howto ? `<dt>실행</dt><dd><code>${esc(r.howto)}</code></dd>` : ''}</dl>
+      ${tasks.length ? `<div class="row">${tasks.map(t => `<button class="ghost small" data-open="${esc(t.id)}">${esc(t.title.length > 22 ? t.title.slice(0, 22) + '…' : t.title)}</button>`).join('')}</div>` : ''}
+      ${r.code ? `<details><summary class="small">원본 코드 보기</summary><pre>${esc(r.code)}</pre></details>` : ''}</article>`;
+  }
+
+  function vAttempts() {
+    const f = S.filterAttempt || 'all';
+    const A = S.attempts.filter(a => f === 'all' || a.result === f).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    return `<section class="grid" style="gap:12px"><div class="toolbar"><h2>시도 기록</h2><span class="small muted">어떤 코드를 썼고, 왜 실패했고, 무엇을 고쳐 기존 코드보다 나아졌는지</span>
+      <span style="margin-left:auto" class="row"><select id="fAttempt" aria-label="결과 필터"><option value="all">전체</option>${['성공', '부분', '실패'].map(x => `<option ${f === x ? 'selected' : ''}>${x}</option>`).join('')}</select>${db && !S.readOnly ? '<button class="primary" data-act="newattempt">시도 기록</button>' : ''}</span></div>
+      ${A.length ? `<div class="list">${A.map(attemptFull).join('')}</div>` : '<div class="empty">아직 기록이 없습니다. 코드를 실행해 볼 때마다 "시도 기록"으로 남겨 주세요. 실패한 시도가 발표에서 가장 좋은 근거가 됩니다.</div>'}</section>`;
+  }
+  function attemptFull(a) {
+    const t = byId(S.tasks, a.taskId), r = byId(S.refs, a.refId), logs = S.logs.filter(l => l.attemptId === a.id);
+    return `<article class="item"><header><b class="r-${esc(a.result)}">${esc(a.result || '')}</b><b>${esc(a.title || '(제목 없음)')}</b>${a.forDeck ? '<span class="tag">발표에 사용</span>' : ''}<span class="small muted">${esc(t ? t.title : '')} · ${esc(authorName(a.author))} · ${fmtTime(a.createdAt)}</span>
+      <span style="margin-left:auto" class="row">${db && !S.readOnly ? `<button class="ghost" data-edit-attempt="${esc(a.id)}">수정</button>` : ''}</span></header>
+      <dl class="kv">${r ? `<dt>참고한 코드</dt><dd class="path">${esc(r.path || r.title)}</dd>` : ''}${a.codePath ? `<dt>사용한 코드</dt><dd class="path">${esc(a.codePath)}</dd>` : ''}${a.reason ? `<dt>실패 원인</dt><dd>${esc(a.reason)}</dd>` : ''}${a.fix ? `<dt>수정 내용</dt><dd>${esc(a.fix)}</dd>` : ''}${a.improvement ? `<dt>강화된 점</dt><dd>${esc(a.improvement)}</dd>` : ''}${logs.length ? `<dt>실행 로그</dt><dd>${logs.length}건</dd>` : ''}</dl>
+      ${(a.baseCode || a.newCode) ? `<details><summary class="small">기존 코드 대비 변경 보기</summary>${diffHtml(a.baseCode, a.newCode)}</details>` : ''}</article>`;
+  }
+
+  function vLogs() {
+    const q = (S.logQuery || '').toLowerCase(), f = S.filterLog || 'all';
+    const L = S.logs.filter(l => (f === 'all' || l.result === f) && (!q || (l.command + ' ' + l.output + ' ' + (l.note || '')).toLowerCase().includes(q))).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    return `<section class="grid" style="gap:12px"><div class="toolbar"><h2>실행 로그</h2><span class="small muted">터미널 출력을 붙여넣거나 .log/.txt 파일을 불러와 모아 둡니다</span>
+      <span style="margin-left:auto" class="row"><input id="logQ" placeholder="로그 검색 (예: ABORTED, amcl)" value="${esc(S.logQuery || '')}" aria-label="로그 검색"><select id="fLog" aria-label="결과 필터"><option value="all">전체</option>${['성공', '실패'].map(x => `<option ${f === x ? 'selected' : ''}>${x}</option>`).join('')}</select>${db && !S.readOnly ? '<button class="primary" data-act="newlog">로그 추가</button>' : ''}</span></div>
+      ${L.length ? `<div class="list">${L.map(logItem).join('')}</div>` : '<div class="empty">아직 모인 로그가 없습니다. 실행할 때 나온 터미널 출력을 붙여넣어 두면 실패 원인을 찾을 때와 발표 때 그대로 쓸 수 있습니다.</div>'}</section>`;
+  }
+  function logItem(l) {
+    const t = byId(S.tasks, l.taskId), a = byId(S.attempts, l.attemptId);
+    return `<article class="item"><header><b class="r-${esc(l.result)}">${esc(l.result || '')}</b><code>${esc(l.command || '(명령어 없음)')}</code><span class="small muted">${esc(t ? t.title : '')}${a ? ' · ' + esc(a.title) : ''} · ${esc(authorName(l.author))} · ${fmtTime(l.createdAt)}</span>${db && !S.readOnly ? `<span style="margin-left:auto"><button class="ghost" data-del-log="${esc(l.id)}">삭제</button></span>` : ''}</header>
+      ${l.note ? `<div class="small">${esc(l.note)}</div>` : ''}<details ${S.openLog === l.id ? 'open' : ''}><summary class="small">출력 ${String(l.output || '').split('\n').length}줄</summary><pre>${esc(l.output || '')}</pre></details></article>`;
+  }
+
+  function vDeck() {
+    const A = S.attempts.filter(a => a.forDeck).sort((a, b) => ((byId(S.tasks, a.taskId) || {}).order || 0) - ((byId(S.tasks, b.taskId) || {}).order || 0));
+    const imgs = S.media;
+    return `<section class="grid" style="gap:14px"><div class="toolbar"><h2>발표 자료</h2><span class="small muted">시도 기록에서 "발표에 사용"을 켠 항목이 문제 → 원인 → 수정 → 결과 순서로 모입니다</span>
+      <span style="margin-left:auto" class="row"><button data-act="copydeck" ${A.length ? '' : 'disabled'}>발표 요약 복사</button>${downloads ? `<button data-act="savedeck" ${A.length ? '' : 'disabled'}>Markdown 저장</button>` : ''}${assets && db && !S.readOnly ? '<button class="primary" data-act="newmedia">스크린샷 올리기</button>' : ''}</span></div>
+      <div class="panel grid" style="gap:8px"><h3>발표 흐름 (자동)</h3><ol class="small" style="margin:0;padding-left:18px;display:grid;gap:4px">
+        <li>배경: 스마트팜 수확 노동 문제와 로봇 A의 역할(섹터 순회 · 사진 전송 · 탐지 결과를 B에 전달)</li>
+        <li>설계: 로봇 A 흐름도 ①~⑥, 토픽·메시지 정의</li>
+        <li>구현: 참고 코드에서 출발해 무엇을 바꿨는지 (아래 사례)</li>
+        <li>테스트: 실행 로그와 결과 (주행, 비전 연동, B 연동, 배터리, 통합)</li>
+        <li>정리: 완료 ${aTasks().filter(t => t.status === '완료').length}/${aTasks().length} 작업, 남은 과제</li></ol></div>
+      ${A.length ? A.map(storyCard).join('') : '<div class="empty">아직 발표용으로 고른 시도가 없습니다. 시도 기록에서 "발표에 사용"을 켜면 여기에 사례가 쌓입니다.</div>'}
+      <div class="panel grid" style="gap:10px"><h3>스크린샷 · 사진</h3>${imgs.length ? `<div class="thumbs">${imgs.map(m => `<figure><a href="${esc(m.url)}" target="_blank" rel="noopener"><img src="${esc(m.url)}" alt="${esc(m.title)}" loading="lazy"></a><figcaption><b>${esc(m.title)}</b><br><span class="muted">${esc((byId(S.tasks, m.taskId) || {}).title || '')}</span></figcaption></figure>`).join('')}</div>` : `<div class="empty">${assets ? 'RViz 화면, 맵, 터미널 캡처를 올려 두면 발표 때 바로 쓸 수 있습니다.' : '이 화면에서는 이미지 업로드를 쓸 수 없습니다(편집 권한 필요).'}</div>`}</div>
+    </section>`;
+  }
+  function storyCard(a) {
+    const t = byId(S.tasks, a.taskId), r = byId(S.refs, a.refId), logs = S.logs.filter(l => l.attemptId === a.id);
+    return `<article class="panel story"><div class="row"><span class="tag">${esc(t ? t.phase : '')}</span><h3>${esc(t ? t.title : '')}</h3><span class="small muted">${esc(a.title)}</span></div>
+      ${r ? `<div class="step"><span>출발점</span><div><span class="path">${esc(r.path || r.title)}</span><div class="small muted">${esc(r.limits || '')}</div></div></div>` : ''}
+      ${a.reason ? `<div class="step"><span>문제</span><div>${esc(a.reason)}</div></div>` : ''}
+      ${a.fix ? `<div class="step"><span>수정</span><div>${esc(a.fix)}</div></div>` : ''}
+      ${a.improvement ? `<div class="step"><span>강화된 점</span><div>${esc(a.improvement)}</div></div>` : ''}
+      <div class="step"><span>결과</span><div class="r-${esc(a.result)}"><b>${esc(a.result)}</b> ${logs.length ? `<span class="small muted">· 로그 ${logs.length}건</span>` : ''}</div></div>
+      ${(a.baseCode || a.newCode) ? `<details><summary class="small">코드 비교</summary>${diffHtml(a.baseCode, a.newCode)}</details>` : ''}</article>`;
+  }
+  function deckMarkdown() {
+    const A = S.attempts.filter(a => a.forDeck);
+    let md = `# 로봇 A 개발 기록\n\n완료 ${aTasks().filter(t => t.status === '완료').length}/${aTasks().length} 작업\n`;
+    A.forEach(a => {
+      const t = byId(S.tasks, a.taskId), r = byId(S.refs, a.refId);
+      md += `\n## ${t ? t.title : ''} — ${a.title}\n`;
+      if (r) md += `- 출발점: ${r.path || r.title}\n`;
+      if (a.reason) md += `- 문제: ${a.reason}\n`;
+      if (a.fix) md += `- 수정: ${a.fix}\n`;
+      if (a.improvement) md += `- 강화된 점: ${a.improvement}\n`;
+      md += `- 결과: ${a.result}\n`;
+    });
+    return md;
+  }
+
+  // ---------- task sheet ----------
+  function openTask(id) {
+    const t = byId(S.tasks, id);
+    if (!t) { if (S.loaded.tasks) closeSheet(); return; }
+    const open = $('#layer .sheet'), act = document.activeElement;
+    if (open && open.dataset.id === id && open.contains(act) && /INPUT|TEXTAREA|SELECT/.test(act.tagName)) return; // keep what the viewer is typing
+    const refs = (t.refIds || []).map(r => byId(S.refs, r)).filter(Boolean);
+    const atts = S.attempts.filter(a => a.taskId === id).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    const logs = S.logs.filter(l => l.taskId === id).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    const editable = db && !S.readOnly && (t.team || 'A') === 'A';
+    const slots = Object.entries(t.slots || {}).filter(([, v]) => v).map(([k, v]) => `<span class="cell k-${esc(v)}" style="display:inline-grid;width:auto;padding:0 8px;cursor:default">${labelSlot(k)} · ${esc(v)}</span>`).join(' ');
+    $('#layer').innerHTML = `<div class="sheet-bg" data-close="1"></div><aside class="sheet" role="dialog" aria-modal="true" aria-label="${esc(t.title)}" data-id="${esc(t.id)}">
+      <div class="row"><span class="tag">${esc(t.phase)}</span>${(t.charts || []).map(c => `<span class="tag">${c} ${CHART_NAMES[c] || ''}</span>`).join('')}<button class="ghost" style="margin-left:auto" data-close="1">닫기</button></div>
+      <h2>${esc(t.title)}</h2>
+      <div class="formgrid">
+        <label>진행 상황<select id="tStatus" ${editable ? '' : 'disabled'}>${STATUSES.map(s => `<option ${t.status === s ? 'selected' : ''}>${s}</option>`).join('')}</select></label>
+        <label>담당자<input id="tOwner" value="${esc(t.owner || '')}" ${editable ? '' : 'disabled'}></label>
+        <label class="full">완료 기준 · 메모<textarea id="tNote" ${editable ? '' : 'disabled'} placeholder="예: 4개 섹터 좌표에 3회 연속 도착">${esc(t.note || '')}</textarea></label>
+      </div>
+      ${editable ? `<div class="row"><button class="primary" data-save-task="${esc(t.id)}">저장</button><span class="small muted">${t.updatedAt ? `마지막 수정 ${fmtTime(t.updatedAt)} · ${esc(authorName(t.updatedBy))}` : ''}</span></div>` : ''}
+      <div class="panel grid" style="gap:6px"><h3>일정</h3><div class="row">${slots || '<span class="muted small">잡힌 칸 없음</span>'}</div></div>
+      <div class="panel grid" style="gap:8px"><h3>참고할 코드</h3>${refs.length ? refs.map(r => `<div class="item"><header><b>${esc(r.title)}</b>${r.path ? `<a class="path" href="${esc(r.url || REPO + r.path)}" target="_blank" rel="noopener">${esc(r.path)}</a>` : ''}</header><div class="small"><span class="muted">그대로 쓰면 </span>${esc(r.limits || '')}</div></div>`).join('') : '<span class="small muted">연결된 참고 코드가 없습니다.</span>'}</div>
+      <div class="panel grid" style="gap:8px"><div class="row"><h3>시도 기록 ${atts.length}</h3>${editable ? `<button style="margin-left:auto" class="primary" data-act="newattempt" data-task="${esc(t.id)}">시도 기록</button>` : ''}</div>${atts.length ? atts.map(attemptFull).join('') : '<span class="small muted">아직 없습니다. 어떤 코드로 시도했고 결과가 어땠는지 남겨 주세요.</span>'}</div>
+      <div class="panel grid" style="gap:8px"><div class="row"><h3>실행 로그 ${logs.length}</h3>${editable ? `<button style="margin-left:auto" data-act="newlog" data-task="${esc(t.id)}">로그 추가</button>` : ''}</div>${logs.length ? logs.map(logItem).join('') : '<span class="small muted">아직 없습니다.</span>'}</div>
+    </aside>`;
+  }
+  function closeSheet() { if ($('#layer .sheet')) $('#layer').innerHTML = ''; }
+
+  // ---------- modals ----------
+  function modal(html, onSubmit) {
+    const host = document.createElement('div');
+    host.innerHTML = `<div class="modal-bg"></div><form class="modal" novalidate>${html}<div class="row" style="justify-content:flex-end"><button type="button" class="ghost" data-cancel>취소</button><button type="submit" class="primary">저장</button></div></form>`;
+    document.body.appendChild(host);
+    const form = $('form', host);
+    const close = () => host.remove();
+    host.addEventListener('click', e => { if (e.target.matches('.modal-bg,[data-cancel]')) close(); });
+    form.addEventListener('submit', async e => { e.preventDefault(); const btn = $('button[type=submit]', form); btn.disabled = true; const ok = await onSubmit(form); btn.disabled = false; if (ok) close(); });
+    const first = $('input,select,textarea', form); if (first) first.focus();
+    return form;
+  }
+  const taskOptions = sel => aTasks().map(t => `<option value="${esc(t.id)}" ${t.id === sel ? 'selected' : ''}>${esc(t.order)}. ${esc(t.title)}</option>`).join('');
+  const refOptions = sel => `<option value="">(없음)</option>` + [...S.refs].sort((a, b) => (a.order || 0) - (b.order || 0)).map(r => `<option value="${esc(r.id)}" ${r.id === sel ? 'selected' : ''}>${esc(r.path || r.title)}</option>`).join('');
+
+  function attemptModal(taskId, existing) {
+    const a = existing || { taskId, result: '실패' };
+    const form = modal(`<h2>${existing ? '시도 기록 수정' : '시도 기록'}</h2>
+      <div class="formgrid">
+        <label class="full">작업<select name="taskId">${taskOptions(a.taskId)}</select></label>
+        <label class="full">무엇을 시도했나<input name="title" value="${esc(a.title || '')}" placeholder="예: follow_waypoints로 4개 섹터 순회" required></label>
+        <label>참고한 코드<select name="refId">${refOptions(a.refId)}</select></label>
+        <label>사용한 코드 (경로 · 커밋)<input name="codePath" value="${esc(a.codePath || '')}" placeholder="예: robot_a/sector_patrol.py @a1b2c3"></label>
+        <label>결과<select name="result">${['성공', '부분', '실패'].map(x => `<option ${a.result === x ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
+        <label class="row" style="display:flex;gap:8px;align-items:center;color:var(--fg);padding-top:18px"><input type="checkbox" name="forDeck" style="width:auto" ${a.forDeck ? 'checked' : ''}> 발표에 사용</label>
+        <label class="full">실패 원인 · 관찰한 현상<textarea name="reason" placeholder="예: 충전 후 position_index가 0으로 돌아가 1번 섹터부터 다시 돎">${esc(a.reason || '')}</textarea></label>
+        <label class="full">수정한 내용<textarea name="fix">${esc(a.fix || '')}</textarea></label>
+        <label class="full">기존 코드보다 강화된 점<textarea name="improvement" placeholder="예: 중단한 섹터 번호를 저장해 충전 후 그 섹터부터 재개">${esc(a.improvement || '')}</textarea></label>
+        <label class="full"><span class="row" style="justify-content:space-between">기존 코드 (비교 기준)<button type="button" class="ghost small" data-loadref>참고 코드 불러오기</button></span><textarea name="baseCode" class="code" rows="8">${esc(a.baseCode || '')}</textarea></label>
+        <label class="full">수정한 코드<textarea name="newCode" class="code" rows="8">${esc(a.newCode || '')}</textarea></label>
+      </div>`, async f => {
+      const d = Object.fromEntries(new FormData(f).entries());
+      if (!d.title.trim()) { toast('무엇을 시도했는지 적어 주세요.'); return false; }
+      const body = { taskId: d.taskId, title: d.title.trim(), refId: d.refId || null, codePath: d.codePath || '', result: d.result, forDeck: !!f.forDeck.checked, reason: d.reason, fix: d.fix, improvement: d.improvement, baseCode: d.baseCode.slice(0, 60000), newCode: d.newCode.slice(0, 60000) };
+      if (existing) return write(() => db.doc('attempts/' + existing.id).update({ ...body, ...stamp() }), '시도 기록을 고쳤습니다.');
+      return write(() => db.collection('attempts').add({ ...body, author: S.me || null, createdAt: new Date().toISOString() }), '시도 기록을 남겼습니다.');
+    });
+    $('[data-loadref]', form).addEventListener('click', () => {
+      const r = byId(S.refs, form.refId.value);
+      if (!r || !r.code) { toast('선택한 참고 자료에 원본 코드가 없습니다.'); return; }
+      form.baseCode.value = r.code; if (!form.newCode.value) form.newCode.value = r.code;
+    });
+  }
+  function logModal(taskId) {
+    const form = modal(`<h2>실행 로그 추가</h2>
+      <div class="formgrid">
+        <label>작업<select name="taskId">${taskOptions(taskId)}</select></label>
+        <label>시도 (선택)<select name="attemptId"><option value="">(연결 안 함)</option>${S.attempts.filter(a => !taskId || a.taskId === taskId).map(a => `<option value="${esc(a.id)}">${esc(a.title)}</option>`).join('')}</select></label>
+        <label class="full">실행한 명령어<input name="command" placeholder="예: ros2 run robot_a sector_patrol --ros-args -r __ns:=/robot3"></label>
+        <label>결과<select name="result"><option>실패</option><option>성공</option></select></label>
+        <label>메모<input name="note" placeholder="예: 2번 섹터 앞에서 Goal ABORTED"></label>
+        <label class="full"><span class="row" style="justify-content:space-between">출력<span><input type="file" id="logFile" accept=".log,.txt,text/plain" style="width:auto"></span></span><textarea name="output" class="code" rows="12" placeholder="터미널 출력을 붙여넣으세요"></textarea></label>
+      </div>`, async f => {
+      const d = Object.fromEntries(new FormData(f).entries());
+      if (!d.output.trim() && !d.command.trim()) { toast('명령어나 출력 중 하나는 있어야 합니다.'); return false; }
+      let out = d.output; if (out.length > 120000) out = out.slice(0, 20000) + '\n…(중간 생략)…\n' + out.slice(-80000);
+      return write(() => db.collection('logs').add({ taskId: d.taskId, attemptId: d.attemptId || null, command: d.command, result: d.result, note: d.note, output: out, author: S.me || null, createdAt: new Date().toISOString() }), '로그를 저장했습니다.');
+    });
+    $('#logFile', form).addEventListener('change', e => { const file = e.target.files[0]; if (!file) return; const rd = new FileReader(); rd.onload = () => { form.output.value = String(rd.result); }; rd.readAsText(file); });
+    form.taskId.addEventListener('change', () => { form.attemptId.innerHTML = '<option value="">(연결 안 함)</option>' + S.attempts.filter(a => a.taskId === form.taskId.value).map(a => `<option value="${esc(a.id)}">${esc(a.title)}</option>`).join(''); });
+  }
+  function taskModal() {
+    modal(`<h2>작업 추가</h2><div class="formgrid">
+      <label class="full">세부항목<input name="title" required></label>
+      <label>구분<select name="phase"><option>설계</option><option selected>구현</option><option>테스트</option></select></label>
+      <label>담당자<input name="owner"></label>
+      <label class="full">흐름도 차트 (쉼표로 구분, 예: ①,②)<input name="charts"></label></div>`, async f => {
+      const d = Object.fromEntries(new FormData(f).entries());
+      if (!d.title.trim()) { toast('세부항목을 적어 주세요.'); return false; }
+      const order = Math.max(0, ...aTasks().map(t => t.order || 0)) + 1;
+      return write(() => db.collection('tasks').doc('t' + String(order).padStart(2, '0') + '-' + Math.random().toString(36).slice(2, 6)).set({ team: 'A', order, title: d.title.trim(), phase: d.phase, owner: d.owner, status: '예정', charts: d.charts.split(',').map(s => s.trim()).filter(Boolean), slots: {}, refIds: [], ...stamp() }), '작업을 추가했습니다.');
+    });
+  }
+  function refModal() {
+    modal(`<h2>참고 자료 추가</h2><div class="formgrid">
+      <label class="full">이름<input name="title" required placeholder="예: Nav2 costmap 파라미터 문서"></label>
+      <label>종류<select name="kind"><option>코드</option><option>문서</option><option>명령어</option></select></label>
+      <label>경로 또는 링크<input name="url" placeholder="https://…"></label>
+      <label class="full">쓰는 곳<input name="use"></label>
+      <label class="full">그대로 쓰면 생기는 문제<textarea name="limits"></textarea></label></div>`, async f => {
+      const d = Object.fromEntries(new FormData(f).entries());
+      if (!d.title.trim()) { toast('이름을 적어 주세요.'); return false; }
+      const url = /^https?:\/\//.test(d.url) ? d.url : '';
+      return write(() => db.collection('refs').add({ title: d.title.trim(), kind: d.kind, url, path: url ? '' : d.url, use: d.use, limits: d.limits, order: 100 + S.refs.length, taskIds: [] }), '참고 자료를 추가했습니다.');
+    });
+  }
+  function mediaModal() {
+    const form = modal(`<h2>스크린샷 올리기</h2><div class="formgrid">
+      <label class="full">이미지<input type="file" name="file" accept="image/*" required></label>
+      <label>제목<input name="title" placeholder="예: SLAM으로 만든 온실 맵"></label>
+      <label>작업<select name="taskId">${taskOptions()}</select></label></div>`, async f => {
+      const file = f.file.files[0];
+      if (!file) { toast('이미지를 골라 주세요.'); return false; }
+      try {
+        const up = await assets.upload(file);
+        return write(() => db.collection('media').add({ assetId: up.id, url: up.url, title: f.title.value || file.name, taskId: f.taskId.value, author: S.me || null, createdAt: new Date().toISOString() }), '이미지를 올렸습니다.');
+      } catch (e) { toast(e && e.code === 'too_large' ? '파일이 너무 큽니다(20MB 이하).' : '이미지를 올리지 못했습니다.'); return false; }
+    });
+  }
+
+  // ---------- events ----------
+  document.addEventListener('click', async e => {
+    const el = e.target.closest('[data-open],[data-close],[data-cell],[data-act],[data-save-task],[data-edit-attempt],[data-del-log]');
+    if (!el) return;
+    if (el.dataset.open) { lastView = view() === 'task' ? lastView : view(); location.hash = 'task-' + el.dataset.open; return; }
+    if (el.dataset.close) { location.hash = lastView; return; }
+    if (el.dataset.cell) {
+      if (!db || S.readOnly) { toast('일정을 바꾸려면 저장 권한이 필요합니다.'); return; }
+      const [id, k] = el.dataset.cell.split('|'); const t = byId(S.tasks, id); if (!t) return;
+      const cur = (t.slots || {})[k] || ''; const nxt = CELL_CYCLE[(CELL_CYCLE.indexOf(cur) + 1) % CELL_CYCLE.length];
+      const slots = { ...(t.slots || {}) }; if (nxt) slots[k] = nxt; else delete slots[k];
+      await write(() => db.doc('tasks/' + id).update({ slots: slots, ...stamp() }));
+      return;
+    }
+    if (el.dataset.saveTask) {
+      const id = el.dataset.saveTask;
+      await write(() => db.doc('tasks/' + id).update({ status: $('#tStatus').value, owner: $('#tOwner').value, note: $('#tNote').value, ...stamp() }), '작업을 저장했습니다.');
+      return;
+    }
+    if (el.dataset.editAttempt) { attemptModal(null, byId(S.attempts, el.dataset.editAttempt)); return; }
+    if (el.dataset.delLog) { if (el.dataset.confirm !== '1') { el.dataset.confirm = '1'; el.textContent = '한 번 더 누르면 삭제'; setTimeout(() => { el.dataset.confirm = ''; el.textContent = '삭제'; }, 3000); return; } await write(() => db.doc('logs/' + el.dataset.delLog).delete(), '로그를 삭제했습니다.'); return; }
+    const act = el.dataset.act;
+    if (act === 'newattempt') attemptModal(el.dataset.task || (view() === 'task' ? location.hash.slice(6) : null));
+    if (act === 'newlog') logModal(el.dataset.task || null);
+    if (act === 'newtask') taskModal();
+    if (act === 'newref') refModal();
+    if (act === 'newmedia') mediaModal();
+    if (act === 'copydeck') { const md = deckMarkdown(); try { await navigator.clipboard.writeText(md); toast('발표 요약을 복사했습니다.'); } catch (err) { modal(`<h2>발표 요약</h2><textarea class="code" rows="16" readonly>${esc(md)}</textarea>`, async () => true); } }
+    if (act === 'savedeck') { try { await downloads.save({ filename: '로봇A_발표요약.md', data: deckMarkdown() }); } catch (err) { if (!err || err.code !== 'declined') toast('파일로 저장하지 못했습니다.'); } }
+  });
+  document.addEventListener('change', e => {
+    if (e.target.id === 'showB') { S.showB = e.target.checked; render(); }
+    if (e.target.id === 'fAttempt') { S.filterAttempt = e.target.value; render(); }
+    if (e.target.id === 'fLog') { S.filterLog = e.target.value; render(); }
+  });
+  let qTimer; document.addEventListener('input', e => { if (e.target.id === 'logQ') { clearTimeout(qTimer); const v = e.target.value; qTimer = setTimeout(() => { S.logQuery = v; render(); const i = $('#logQ'); if (i) { i.focus(); i.setSelectionRange(v.length, v.length); } }, 250); } });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { const m = document.querySelector('.modal'); if (m) m.parentElement.remove(); else if (view() === 'task') location.hash = lastView; } });
+  window.addEventListener('hashchange', () => { const v = view(); if (v !== 'task') lastView = v; render(); });
+
+  // ---------- boot ----------
+  if (view() !== 'task') lastView = view();
+  render();
+  (async () => {
+    [db, user, assets, downloads] = await Promise.all(['db', 'user', 'assets', 'downloads'].map(n => window.claude && window.claude.use ? window.claude.use(n).catch(() => null) : Promise.resolve(null)));
+    S.dbChecked = true;
+    if (!db) { render(); return; }
+    if (user) {
+      try { S.me = await user.id(); } catch (e) {}
+      try { const c = await user.can('data.write'); if (c === false) S.readOnly = true; } catch (e) {}
+    }
+    const timer = setTimeout(() => { S.timedOut = true; render(); }, 10000);
+    let rq = null; const schedule = () => { if (rq) return; rq = requestAnimationFrame(() => { rq = null; render(); resolveNames(); }); };
+    ['tasks', 'refs', 'attempts', 'logs', 'media'].forEach(name => {
+      db.collection(name).onSnapshot(snap => {
+        S[name] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        if (!snap.metadata.fromCache) S.loaded[name] = true;
+        if (['tasks', 'refs', 'attempts', 'logs', 'media'].every(k => S.loaded[k])) { clearTimeout(timer); S.timedOut = false; }
+        schedule();
+      }, err => { S.loaded[name] = true; clearTimeout(timer); if (err && err.code === 'revoked') { db = null; } schedule(); });
+    });
+  })();
+})();
+</script>
