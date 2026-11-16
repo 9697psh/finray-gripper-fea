@@ -1,4 +1,4 @@
-<title>로봇 A 작업 노트</title>
+<title>수확 로봇 작업 노트</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
@@ -130,16 +130,43 @@ pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 
 .item { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--panel); display: grid; gap: 6px; min-width: 0; }
 .item header { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .item header b { font-size: 13.5px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 2px; background: var(--panel-2); }
+.seg button { border: 0; background: transparent; border-radius: 999px; padding: 4px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--panel); color: var(--fg); box-shadow: var(--shadow); }
+.teamA { color: var(--accent); } .teamB { color: #3b6fd8; }
+.badgeA, .badgeB { font-size: 11px; font-weight: 700; padding: 0 6px; border-radius: 4px; color: #fff; }
+.badgeA { background: #2f8a5a; } .badgeB { background: #3b6fd8; }
+.ms { display: grid; grid-template-columns: 120px 1fr; gap: 6px 12px; font-size: 13px; }
+.ms dt { color: var(--muted); font-variant-numeric: tabular-nums; } .ms dd { margin: 0; }
+.ms dd.hot { font-weight: 700; }
+.linkt { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+.linkt table { border-collapse: collapse; width: 100%; min-width: 860px; }
+.linkt th, .linkt td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; font-size: 13px; }
+.linkt th { background: var(--panel-2); font-weight: 600; }
+.linkt select { width: auto; }
+.inl { border-color: transparent; background: transparent; padding: 3px 6px; }
+.inl:hover, .inl:focus { border-color: var(--line); background: var(--panel); }
+select.inl { font-weight: 600; border-radius: 999px; }
+tr.fresh td { animation: fresh 2.4s ease-out; }
+@keyframes fresh { from { background: var(--accent-soft); } to { background: transparent; } }
+.people { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: 12px; color: var(--muted); }
+.people span.p { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--line); color: var(--fg); }
+.people i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.live { display: inline-flex; align-items: center; gap: 5px; }
+.live i { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); display: inline-block; }
+.live.on i { background: var(--ok); }
 .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .toolbar input, .toolbar select { width: auto; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 
 <header class="top"><div class="wrap topin">
-  <div class="brand"><b>로봇 A 작업 노트</b><span id="meta">탐색·인식 연동 AMR · 11월 18일(수) 저녁 마감</span></div>
+  <div class="brand"><b>수확 로봇 작업 노트</b><span id="meta">로봇 A·B 공동 작업 · 11/18(수) 14:00 아키텍처 발표</span></div>
+  <div class="seg" role="group" aria-label="팀 선택"><button data-team="all">전체</button><button data-team="A">로봇 A</button><button data-team="B">로봇 B</button></div>
   <nav class="tabs" aria-label="화면">
     <a href="#overview" data-v="overview">현황</a>
     <a href="#schedule" data-v="schedule">일정</a>
+    <a href="#links" data-v="links">A·B 연동</a>
     <a href="#refs" data-v="refs">참고 코드</a>
     <a href="#attempts" data-v="attempts">시도 기록</a>
     <a href="#logs" data-v="logs">실행 로그</a>
@@ -147,6 +174,7 @@ pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 
   </nav>
 </div></header>
 
+<div class="wrap"><div class="people" id="people" style="padding-top:10px"></div></div>
 <div class="wrap"><main id="app"><div class="empty">작업 데이터를 불러오는 중입니다.</div></main></div>
 <div id="layer"></div>
 
@@ -159,13 +187,22 @@ pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 
   const STATUSES = ['예정', '진행', '완료', '막힘'];
   const CELL_CYCLE = ['', '계획', '진행', '완료', '예비'];
   const CHARTS = ['전체', '①', '②', '③', '④', '⑤', '⑥'];
-  const CHART_NAMES = { '전체': '전체 흐름', '①': '섹터 이동', '②': '사진 전송·결과 받기', '③': 'B에 작업 정보 전송', '④': '미수확 재확인', '⑤': '작업 마무리', '⑥': '비상 상황 처리' };
+  const CHART_NAMES = {
+    A: { '전체': '전체 흐름', '①': '섹터 이동', '②': '사진 전송·결과 받기', '③': 'B에 작업 정보 전송', '④': '미수확 재확인', '⑤': '작업 마무리', '⑥': '비상 상황 처리' },
+    B: { '전체': '전체 흐름', '①': '작업 받기·섹터 이동', '②': '토마토 개수 세기', '③': '완료 확인·기록', '④': '바구니 비우기', '⑤': '작업 마무리', '⑥': '비상 상황 처리' } };
+  const LINK_STATUS = ['합의 전', '합의', '구현', '연동 확인'];
+  const MILESTONES = [
+    { at: '2026-11-17T09:30:00+09:00', label: '11/17(화)', text: 'Final Project 코드 리뷰 평가 (Day6)' },
+    { at: '2026-11-18T09:30:00+09:00', label: '11/18(수)', text: 'Final Project 코드 리뷰 평가 (Day7)' },
+    { at: '2026-11-18T14:00:00+09:00', label: '11/18(수) 14:00', text: 'System Architecture Diagram 발표 (14:00–16:00)', hot: true },
+    { at: '2026-11-18T22:00:00+09:00', label: '11/18(수) 저녁', text: '로봇 A 기능 구현·단위 테스트 완료 목표' },
+    { at: '2026-11-19T09:30:00+09:00', label: '11/19~', text: '통합 시스템 구축 및 테스트 (시스템 통합 최소 2일)' }];
   const REPO = 'https://github.com/kimandreas/to_students/blob/main/';
-  const DEADLINE = new Date('2026-11-18T22:00:00+09:00');
+  const nextMilestone = () => MILESTONES.find(m => new Date(m.at) > Date.now());
 
   // ---------- state ----------
-  const S = { tasks: [], refs: [], attempts: [], logs: [], media: [], loaded: {}, me: null, canWrite: null, readOnly: false, names: {} };
-  let db = null, user = null, assets = null, downloads = null;
+  const S = { tasks: [], refs: [], attempts: [], logs: [], media: [], interfaces: [], loaded: {}, team: (() => { try { return localStorage.getItem('team') || 'all'; } catch (e) { return 'all'; } })(), me: null, canWrite: null, readOnly: false, names: {} };
+  let db = null, user = null, assets = null, downloads = null, room = null;
 
   // ---------- helpers ----------
   const $ = (s, el = document) => el.querySelector(s);
@@ -205,6 +242,12 @@ pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 
   }
   const sortTasks = arr => [...arr].sort((a, b) => (a.team || 'A').localeCompare(b.team || 'A') || (a.order || 0) - (b.order || 0));
   const aTasks = () => sortTasks(S.tasks.filter(t => (t.team || 'A') === 'A'));
+  const teamOf = t => (t && t.team) || 'A';
+  const inTeam = t => S.team === 'all' || teamOf(t) === S.team;
+  const teamTasks = () => sortTasks(S.tasks.filter(inTeam));
+  const recTeamOk = r => S.team === 'all' || teamOf(byId(S.tasks, r.taskId)) === S.team;
+  const badge = t => `<span class="badge${teamOf(t)}">${teamOf(t)}</span>`;
+  const chartName = (t, c) => (CHART_NAMES[teamOf(t)] || CHART_NAMES.A)[c] || '';
 
   // ---------- writes ----------
   async function write(fn, okMsg) {
@@ -221,42 +264,58 @@ pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 
   const stamp = () => ({ updatedAt: new Date().toISOString(), updatedBy: S.me || null });
 
   // ---------- views ----------
-  function view() { const h = location.hash.replace('#', ''); if (h.startsWith('task-')) return 'task'; return ['overview', 'schedule', 'refs', 'attempts', 'logs', 'deck'].includes(h) ? h : 'overview'; }
-  function render() {
+  function view() { const h = location.hash.replace('#', ''); if (h.startsWith('task-')) return 'task'; return ['overview', 'schedule', 'links', 'refs', 'attempts', 'logs', 'deck'].includes(h) ? h : 'overview'; }
+  function editingInApp() { const a = document.activeElement; return a && $('#app').contains(a) && /INPUT|TEXTAREA|SELECT/.test(a.tagName); }
+  function render(force) {
+    if (!force && editingInApp()) { S.pendingRender = true; return; }
+    S.pendingRender = false;
     const v = view();
     document.querySelectorAll('nav.tabs a').forEach(a => a.setAttribute('aria-current', a.dataset.v === (v === 'task' ? lastView : v) ? 'page' : 'false'));
     const app = $('#app');
-    const ready = ['tasks', 'refs', 'attempts', 'logs', 'media'].every(k => S.loaded[k]);
+    document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.team === S.team ? 'true' : 'false'));
+    const ready = COLLS.every(k => S.loaded[k]);
     let pre = '';
     if (!db && S.dbChecked) pre = '<div class="notice warn">공유 저장소를 쓸 수 없는 화면입니다(로그인하지 않았거나 권한이 없음). 기록 보기·저장이 막혀 있습니다.</div>';
     else if (S.timedOut && !ready) pre = '<div class="notice warn">저장소 응답이 늦습니다. 잠시 후 자동으로 채워집니다.</div>';
     else if (S.readOnly) pre = '<div class="notice">보기 전용입니다. 기록을 남기려면 공유 설정에서 참여자(Contributor) 이상 권한을 받아야 합니다.</div>';
-    const body = { overview: vOverview, schedule: vSchedule, refs: vRefs, attempts: vAttempts, logs: vLogs, deck: vDeck, task: vOverview }[v === 'task' ? (lastView || 'overview') : v]();
+    const body = { overview: vOverview, schedule: vSchedule, links: vLinks, refs: vRefs, attempts: vAttempts, logs: vLogs, deck: vDeck, task: vOverview }[v === 'task' ? (lastView || 'overview') : v]();
     app.innerHTML = pre + body;
     if (v === 'task') openTask(location.hash.slice(6)); else closeSheet();
   }
   let lastView = 'overview';
+  const COLLS = ['tasks', 'refs', 'attempts', 'logs', 'media', 'interfaces'];
 
   function vOverview() {
-    const T = aTasks();
-    if (!T.length) return emptyStore();
+    const T = teamTasks();
+    if (!S.tasks.length) return emptyStore();
     const done = T.filter(t => t.status === '완료').length, doing = T.filter(t => t.status === '진행').length, blocked = T.filter(t => t.status === '막힘').length;
-    const fails = S.attempts.filter(a => a.result === '실패').length;
-    const left = DEADLINE - Date.now(), hrs = Math.max(0, Math.floor(left / 3600e3));
+    const atts = S.attempts.filter(recTeamOk), fails = atts.filter(a => a.result === '실패').length, logs = S.logs.filter(recTeamOk);
+    const nm = nextMilestone(); const left = nm ? new Date(nm.at) - Date.now() : 0, hrs = Math.max(0, Math.floor(left / 3600e3));
     const ns = nowSlot();
     const nowTasks = ns ? T.filter(t => t.slots && t.slots[ns]) : [];
     const phase = ['설계', '구현', '테스트'].map(p => { const ts = T.filter(t => t.phase === p); const d = ts.filter(t => t.status === '완료').length; return `<div class="stat"><span class="l">${p}</span><span class="n">${d}<span class="muted small"> / ${ts.length}</span></span><div class="bar"><i style="width:${ts.length ? d / ts.length * 100 : 0}%"></i></div></div>`; }).join('');
-    const flows = CHARTS.map(c => { const ts = T.filter(t => (t.charts || []).includes(c)); const d = ts.filter(t => t.status === '완료').length; return `<div class="flow"><b>${c} ${CHART_NAMES[c]}</b><div class="bar"><i style="width:${ts.length ? d / ts.length * 100 : 0}%"></i></div><span class="small muted">${ts.length ? `${d}/${ts.length} 작업 완료` : '연결된 작업 없음'}</span></div>`; }).join('');
-    const recentFails = S.attempts.filter(a => a.result === '실패').sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 4);
+    const flowFor = tm => { const ts = S.tasks.filter(t => teamOf(t) === tm); return `<div class="small muted" style="font-weight:600">${badge({ team: tm })} 로봇 ${tm} 흐름도</div><div class="flowmap">${CHARTS.map(c => { const xs = ts.filter(t => (t.charts || []).includes(c)); const d = xs.filter(t => t.status === '완료').length; return `<div class="flow"><b>${c} ${CHART_NAMES[tm][c]}</b><div class="bar"><i style="width:${xs.length ? d / xs.length * 100 : 0}%"></i></div><span class="small muted">${xs.length ? `${d}/${xs.length} 작업 완료` : '연결된 작업 없음'}</span></div>`; }).join('')}</div>`; };
+    const teams = S.team === 'all' ? ['A', 'B'] : [S.team];
+    const recentFails = atts.filter(a => a.result === '실패').sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 4);
+    const links = S.interfaces, linkDone = links.filter(l => l.status === '연동 확인').length;
+    const feed = [...S.tasks.filter(t => t.updatedAt && t.updatedBy).map(t => ({ at: t.updatedAt, who: t.updatedBy, t, txt: `작업 수정: ${t.title}` })),
+      ...S.attempts.map(a => ({ at: a.updatedAt || a.createdAt, who: a.updatedBy || a.author, t: byId(S.tasks, a.taskId), txt: `시도 ${a.result}: ${a.title}` })),
+      ...S.logs.map(l => ({ at: l.createdAt, who: l.author, t: byId(S.tasks, l.taskId), txt: `로그 ${l.result}: ${l.command || ''}` })),
+      ...S.interfaces.filter(l => l.updatedAt).map(l => ({ at: l.updatedAt, who: l.updatedBy, t: null, txt: `연동 '${l.name}' → ${l.status}` }))]
+      .filter(x => x.at && (!x.t || inTeam(x.t))).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 8);
     return `
     <section class="grid g4">
-      <div class="panel stat"><span class="l">완료한 작업</span><span class="n">${done}<span class="muted small"> / ${T.length}</span></span><div class="bar"><i style="width:${done / T.length * 100}%"></i></div></div>
+      <div class="panel stat"><span class="l">완료한 작업 ${S.team === 'all' ? '(A·B)' : '(로봇 ' + S.team + ')'}</span><span class="n">${done}<span class="muted small"> / ${T.length}</span></span><div class="bar"><i style="width:${T.length ? done / T.length * 100 : 0}%"></i></div></div>
       <div class="panel stat"><span class="l">진행 중 · 막힘</span><span class="n">${doing} · <span class="r-실패">${blocked}</span></span><span class="small muted">막힌 작업은 시도 기록에 원인을 남겨 주세요</span></div>
-      <div class="panel stat"><span class="l">시도 · 실패 · 로그</span><span class="n">${S.attempts.length} · <span class="r-실패">${fails}</span> · ${S.logs.length}</span><span class="small muted">발표 자료로 모이는 기록</span></div>
-      <div class="panel stat"><span class="l">마감까지 (18일 수 저녁)</span><span class="n">${left > 0 ? `${Math.floor(hrs / 24)}일 ${hrs % 24}시간` : '마감 지남'}</span><span class="small muted">19일 오전은 B 연동 예비 칸</span></div>
+      <div class="panel stat"><span class="l">A·B 연동 확인</span><span class="n">${linkDone}<span class="muted small"> / ${links.length}</span></span><span class="small muted">시도 ${atts.length} · 실패 <span class="r-실패">${fails}</span> · 로그 ${logs.length}</span></div>
+      <div class="panel stat"><span class="l">다음 일정까지</span><span class="n">${nm ? `${Math.floor(hrs / 24)}일 ${hrs % 24}시간` : '-'}</span><span class="small muted">${nm ? esc(nm.label + ' ' + nm.text) : ''}</span></div>
     </section>
-    <section class="panel grid" style="gap:12px"><div class="row"><h2>단계별 진행</h2></div><div class="grid g4" style="grid-template-columns:repeat(3,minmax(0,1fr))">${phase}</div></section>
-    <section class="panel grid" style="gap:12px"><div class="row"><h2>흐름도 차트별 진행</h2><span class="small muted">로봇 A 흐름도(전체 흐름, ①~⑥)와 작업을 연결한 진행률</span></div><div class="flowmap">${flows}</div></section>
+    <section class="grid g2">
+      <div class="panel grid" style="gap:10px"><h2>과정 일정 <span class="small muted">Notion 과정 안내 기준</span></h2><dl class="ms">${MILESTONES.map(m => `<dt>${esc(m.label)}</dt><dd class="${m.hot ? 'hot' : ''} ${new Date(m.at) < Date.now() ? 'muted' : ''}">${esc(m.text)}</dd>`).join('')}</dl></div>
+      <div class="panel grid" style="gap:10px"><h2>최근 활동 <span class="small muted">모든 팀원의 수정이 바로 보입니다</span></h2>${feed.length ? `<div class="list">${feed.map(x => `<div class="row small">${x.t ? badge(x.t) : '<span class="tag">연동</span>'}<span>${esc(x.txt)}</span><span class="muted" style="margin-left:auto">${esc(authorName(x.who))} · ${fmtTime(x.at)}</span></div>`).join('')}</div>` : '<div class="empty">아직 활동이 없습니다.</div>'}</div>
+    </section>
+    <section class="panel grid" style="gap:12px"><div class="row"><h2>단계별 진행</h2></div><div class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">${phase}</div></section>
+    <section class="panel grid" style="gap:12px"><div class="row"><h2>흐름도 차트별 진행</h2><span class="small muted">각 팀 흐름도(전체, ①~⑥)와 작업을 연결한 진행률</span></div>${teams.map(flowFor).join('')}</section>
     <section class="grid g2">
       <div class="panel grid" style="gap:10px"><h2>지금 칸에 잡힌 작업 <span class="small muted">${ns ? labelSlot(ns) : ''}</span></h2>${nowTasks.length ? `<div class="list">${nowTasks.map(taskRow).join('')}</div>` : '<div class="empty">지금 시간대에 잡힌 작업이 없습니다.</div>'}</div>
       <div class="panel grid" style="gap:10px"><h2>최근 실패한 시도</h2>${recentFails.length ? `<div class="list">${recentFails.map(attemptMini).join('')}</div>` : '<div class="empty">아직 실패 기록이 없습니다. 실패한 시도도 기록해 두면 발표의 "문제 → 해결" 근거가 됩니다.</div>'}</div>
@@ -264,7 +323,7 @@ pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 
   }
   const labelSlot = k => { const [d, p] = k.split('-'); return `${d}일(${DOW[d] || ''}) ${PARTS[p]}`; };
   function taskRow(t) {
-    return `<div class="item"><header><span class="pill s-${esc(t.status || '예정')}">${esc(t.status || '예정')}</span><b>${esc(t.title)}</b><span class="tag">${esc(t.phase)}</span><span class="small muted">${esc(t.owner || '')}</span><span style="margin-left:auto"><button class="ghost" data-open="${esc(t.id)}">열기</button></span></header></div>`;
+    return `<div class="item"><header>${badge(t)}<span class="pill s-${esc(t.status || '예정')}">${esc(t.status || '예정')}</span><b>${esc(t.title)}</b><span class="tag">${esc(t.phase)}</span><span class="small muted">${esc(t.owner || '')}</span><span style="margin-left:auto"><button class="ghost" data-open="${esc(t.id)}">열기</button></span></header></div>`;
   }
   function attemptMini(a) {
     const t = byId(S.tasks, a.taskId);
@@ -275,31 +334,45 @@ pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 
   }
 
   function vSchedule() {
-    const T = sortTasks(S.tasks);
-    if (!T.length) return emptyStore();
-    const ns = nowSlot();
-    const showB = S.showB !== false;
+    const T = teamTasks();
+    if (!S.tasks.length) return emptyStore();
+    const ns = nowSlot(), can = db && !S.readOnly;
     const head1 = DAYS.map(d => `<th colspan="3" class="day dstart">11월 ${d}일 (${DOW[d]})</th>`).join('');
     const head2 = DAYS.map(d => PARTS.map((p, i) => `<th class="part ${i === 0 ? 'dstart' : ''} ${slotKey(d, i) === ns ? 'now' : ''}">${p}</th>`).join('')).join('');
     const rows = []; let team = null;
     T.forEach(t => {
-      const tm = t.team || 'A';
-      if (tm === 'B' && !showB) return;
-      if (tm !== team) { team = tm; rows.push(`<tr class="groupsep"><td colspan="${4 + 15}">${tm === 'A' ? '로봇 A (우리 팀)' : '로봇 B (연동 일정 참고용)'}</td></tr>`); }
-      const cells = DAYS.map(d => PARTS.map((p, i) => { const k = slotKey(d, i), v = (t.slots || {})[k] || ''; return `<td class="c ${i === 0 ? 'dstart' : ''}"><button class="cell ${v ? 'k-' + v : ''} ${k === ns ? 'now' : ''}" data-cell="${esc(t.id)}|${k}" aria-label="${esc(t.title)} ${labelSlot(k)} ${v || '비어 있음'}" ${tm === 'B' ? 'disabled' : ''}>${v}</button></td>`; }).join('')).join('');
-      rows.push(`<tr class="team-${tm}"><td><span class="tag">${esc(t.phase)}</span></td><td class="task"><button data-open="${esc(t.id)}">${esc(t.title)}</button></td><td class="small own">${esc(t.owner || '')}</td><td class="st"><span class="pill s-${esc(t.status || '예정')}">${esc(t.status || '예정')}</span></td>${cells}</tr>`);
+      const tm = teamOf(t);
+      if (tm !== team) { team = tm; rows.push(`<tr class="groupsep"><td colspan="${4 + 15}">로봇 ${tm}</td></tr>`); }
+      const cells = DAYS.map(d => PARTS.map((p, i) => { const k = slotKey(d, i), v = (t.slots || {})[k] || ''; return `<td class="c ${i === 0 ? 'dstart' : ''}"><button class="cell ${v ? 'k-' + v : ''} ${k === ns ? 'now' : ''}" data-cell="${esc(t.id)}|${k}" aria-label="${esc(t.title)} ${labelSlot(k)} ${v || '비어 있음'}">${v}</button></td>`; }).join('')).join('');
+      const fresh = t.updatedAt && t.updatedBy && t.updatedBy !== S.me && Date.now() - new Date(t.updatedAt) < 15000 ? 'fresh' : '';
+      rows.push(`<tr class="${fresh}"><td><span class="tag">${esc(t.phase)}</span></td><td class="task"><button data-open="${esc(t.id)}">${esc(t.title)}</button></td>
+        <td class="small own">${can ? `<input class="inl" data-owner="${esc(t.id)}" value="${esc(t.owner || '')}" aria-label="담당자">` : esc(t.owner || '')}</td>
+        <td class="st">${can ? `<select class="inl s-${esc(t.status || '예정')}" data-status="${esc(t.id)}" aria-label="진행 상황">${STATUSES.map(x => `<option ${t.status === x ? 'selected' : ''}>${x}</option>`).join('')}</select>` : `<span class="pill s-${esc(t.status || '예정')}">${esc(t.status || '예정')}</span>`}</td>${cells}</tr>`);
     });
     return `<section class="grid" style="gap:10px">
-      <div class="toolbar"><h2>일정</h2><span class="small muted">칸을 누르면 계획 → 진행 → 완료 → 예비 → 비움 순으로 바뀝니다. 밑줄 칸이 지금 시간대입니다.</span>
-      <span style="margin-left:auto" class="row"><label class="row" style="display:flex;gap:6px;color:var(--fg)"><input id="showB" type="checkbox" style="width:auto" ${showB ? 'checked' : ''}> 로봇 B 일정 보기</label>${db && !S.readOnly ? '<button data-act="newtask">작업 추가</button>' : ''}</span></div>
+      <div class="toolbar"><h2>일정</h2><span class="small muted">담당자·진행 상황은 표에서 바로 고칩니다. 칸을 누르면 계획 → 진행 → 완료 → 예비 → 비움 순으로 바뀌고, 모든 팀원 화면에 바로 반영됩니다.</span>
+      <span style="margin-left:auto" class="row">${can ? '<button data-act="newtask">작업 추가</button>' : ''}</span></div>
       <div class="sched"><table><thead><tr><th rowspan="2">구분</th><th rowspan="2">세부항목</th><th rowspan="2" class="own">담당자</th><th rowspan="2" class="own">진행 상황</th>${head1}</tr><tr>${head2}</tr></thead><tbody>${rows.join('')}</tbody></table></div>
     </section>`;
   }
 
+  function vLinks() {
+    const L = [...S.interfaces].sort((a, b) => (a.order || 0) - (b.order || 0)), can = db && !S.readOnly;
+    if (!L.length) return '<div class="empty">아직 연동 항목이 없습니다.</div>';
+    return `<section class="grid" style="gap:10px"><div class="toolbar"><h2>A·B 연동</h2><span class="small muted">두 팀이 주고받는 메시지를 한곳에서 합의하고 상태를 맞춥니다. 칸을 고치면 바로 저장되어 상대 팀 화면에도 반영됩니다.</span></div>
+      <div class="linkt"><table><thead><tr><th>메시지</th><th>보내는 쪽 → 받는 쪽</th><th>토픽 · 타입</th><th>담는 내용</th><th>상태</th><th>메모</th></tr></thead><tbody>
+      ${L.map(l => `<tr><td><b>${esc(l.name)}</b></td><td>${esc(l.from)} → ${esc(l.to)}</td>
+        <td>${can ? `<input class="inl" data-link="${esc(l.id)}|topic" value="${esc(l.topic || '')}" placeholder="예: /robot_a/task_info">` : esc(l.topic || '')}</td>
+        <td>${can ? `<textarea class="inl" rows="2" data-link="${esc(l.id)}|fields">${esc(l.fields || '')}</textarea>` : esc(l.fields || '')}</td>
+        <td>${can ? `<select data-link="${esc(l.id)}|status">${LINK_STATUS.map(x => `<option ${l.status === x ? 'selected' : ''}>${x}</option>`).join('')}</select>` : `<span class="tag">${esc(l.status)}</span>`}</td>
+        <td>${can ? `<textarea class="inl" rows="2" data-link="${esc(l.id)}|note">${esc(l.note || '')}</textarea>` : esc(l.note || '')}</td></tr>`).join('')}
+      </tbody></table></div></section>`;
+  }
+
   function vRefs() {
-    const R = [...S.refs].sort((a, b) => (a.order || 0) - (b.order || 0));
+    const R = [...S.refs].filter(r => S.team === 'all' || !(r.taskIds || []).length || (r.taskIds || []).some(id => teamOf(byId(S.tasks, id)) === S.team)).sort((a, b) => (a.order || 0) - (b.order || 0));
     if (!R.length) return `<div class="empty">등록된 참고 코드가 없습니다.</div>`;
-    return `<section class="grid" style="gap:12px"><div class="toolbar"><h2>참고 코드</h2><span class="small muted">강의 저장소 kimandreas/to_students에서 로봇 A 작업에 쓸 수 있는 코드와, 그대로 쓰면 안 되는 이유(강화 포인트)</span>${db && !S.readOnly ? '<span style="margin-left:auto"><button data-act="newref">참고 자료 추가</button></span>' : ''}</div>
+    return `<section class="grid" style="gap:12px"><div class="toolbar"><h2>참고 코드</h2><span class="small muted">강의 저장소 kimandreas/to_students에서 각 팀 작업에 쓸 수 있는 코드와, 그대로 쓰면 안 되는 이유(강화 포인트)</span>${db && !S.readOnly ? '<span style="margin-left:auto"><button data-act="newref">참고 자료 추가</button></span>' : ''}</div>
     <div class="cards">${R.map(refCard).join('')}</div></section>`;
   }
   function refCard(r) {
@@ -308,20 +381,20 @@ pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 
     return `<article class="card"><div class="row"><span class="tag">${esc(r.kind || '코드')}</span>${used ? `<span class="tag">시도 ${used}건에서 사용</span>` : ''}</div>
       <h3>${esc(r.title)}</h3>${r.path ? `<a class="path" href="${esc(r.url || REPO + r.path)}" target="_blank" rel="noopener">${esc(r.path)}</a>` : ''}
       <dl class="kv"><dt>쓰는 곳</dt><dd>${esc(r.use || '')}</dd><dt>그대로 쓰면</dt><dd>${esc(r.limits || '')}</dd>${r.howto ? `<dt>실행</dt><dd><code>${esc(r.howto)}</code></dd>` : ''}</dl>
-      ${tasks.length ? `<div class="row">${tasks.map(t => `<button class="ghost small" data-open="${esc(t.id)}">${esc(t.title.length > 22 ? t.title.slice(0, 22) + '…' : t.title)}</button>`).join('')}</div>` : ''}
+      ${tasks.length ? `<div class="row">${tasks.map(t => `<button class="ghost small" data-open="${esc(t.id)}">${badge(t)} ${esc(t.title.length > 22 ? t.title.slice(0, 22) + '…' : t.title)}</button>`).join('')}</div>` : ''}
       ${r.code ? `<details><summary class="small">원본 코드 보기</summary><pre>${esc(r.code)}</pre></details>` : ''}</article>`;
   }
 
   function vAttempts() {
     const f = S.filterAttempt || 'all';
-    const A = S.attempts.filter(a => f === 'all' || a.result === f).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    const A = S.attempts.filter(recTeamOk).filter(a => f === 'all' || a.result === f).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
     return `<section class="grid" style="gap:12px"><div class="toolbar"><h2>시도 기록</h2><span class="small muted">어떤 코드를 썼고, 왜 실패했고, 무엇을 고쳐 기존 코드보다 나아졌는지</span>
       <span style="margin-left:auto" class="row"><select id="fAttempt" aria-label="결과 필터"><option value="all">전체</option>${['성공', '부분', '실패'].map(x => `<option ${f === x ? 'selected' : ''}>${x}</option>`).join('')}</select>${db && !S.readOnly ? '<button class="primary" data-act="newattempt">시도 기록</button>' : ''}</span></div>
       ${A.length ? `<div class="list">${A.map(attemptFull).join('')}</div>` : '<div class="empty">아직 기록이 없습니다. 코드를 실행해 볼 때마다 "시도 기록"으로 남겨 주세요. 실패한 시도가 발표에서 가장 좋은 근거가 됩니다.</div>'}</section>`;
   }
   function attemptFull(a) {
     const t = byId(S.tasks, a.taskId), r = byId(S.refs, a.refId), logs = S.logs.filter(l => l.attemptId === a.id);
-    return `<article class="item"><header><b class="r-${esc(a.result)}">${esc(a.result || '')}</b><b>${esc(a.title || '(제목 없음)')}</b>${a.forDeck ? '<span class="tag">발표에 사용</span>' : ''}<span class="small muted">${esc(t ? t.title : '')} · ${esc(authorName(a.author))} · ${fmtTime(a.createdAt)}</span>
+    return `<article class="item"><header>${t ? badge(t) : ''}<b class="r-${esc(a.result)}">${esc(a.result || '')}</b><b>${esc(a.title || '(제목 없음)')}</b>${a.forDeck ? '<span class="tag">발표에 사용</span>' : ''}<span class="small muted">${esc(t ? t.title : '')} · ${esc(authorName(a.author))} · ${fmtTime(a.createdAt)}</span>
       <span style="margin-left:auto" class="row">${db && !S.readOnly ? `<button class="ghost" data-edit-attempt="${esc(a.id)}">수정</button>` : ''}</span></header>
       <dl class="kv">${r ? `<dt>참고한 코드</dt><dd class="path">${esc(r.path || r.title)}</dd>` : ''}${a.codePath ? `<dt>사용한 코드</dt><dd class="path">${esc(a.codePath)}</dd>` : ''}${a.reason ? `<dt>실패 원인</dt><dd>${esc(a.reason)}</dd>` : ''}${a.fix ? `<dt>수정 내용</dt><dd>${esc(a.fix)}</dd>` : ''}${a.improvement ? `<dt>강화된 점</dt><dd>${esc(a.improvement)}</dd>` : ''}${logs.length ? `<dt>실행 로그</dt><dd>${logs.length}건</dd>` : ''}</dl>
       ${(a.baseCode || a.newCode) ? `<details><summary class="small">기존 코드 대비 변경 보기</summary>${diffHtml(a.baseCode, a.newCode)}</details>` : ''}</article>`;
@@ -329,35 +402,35 @@ pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 
 
   function vLogs() {
     const q = (S.logQuery || '').toLowerCase(), f = S.filterLog || 'all';
-    const L = S.logs.filter(l => (f === 'all' || l.result === f) && (!q || (l.command + ' ' + l.output + ' ' + (l.note || '')).toLowerCase().includes(q))).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    const L = S.logs.filter(recTeamOk).filter(l => (f === 'all' || l.result === f) && (!q || (l.command + ' ' + l.output + ' ' + (l.note || '')).toLowerCase().includes(q))).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
     return `<section class="grid" style="gap:12px"><div class="toolbar"><h2>실행 로그</h2><span class="small muted">터미널 출력을 붙여넣거나 .log/.txt 파일을 불러와 모아 둡니다</span>
       <span style="margin-left:auto" class="row"><input id="logQ" placeholder="로그 검색 (예: ABORTED, amcl)" value="${esc(S.logQuery || '')}" aria-label="로그 검색"><select id="fLog" aria-label="결과 필터"><option value="all">전체</option>${['성공', '실패'].map(x => `<option ${f === x ? 'selected' : ''}>${x}</option>`).join('')}</select>${db && !S.readOnly ? '<button class="primary" data-act="newlog">로그 추가</button>' : ''}</span></div>
       ${L.length ? `<div class="list">${L.map(logItem).join('')}</div>` : '<div class="empty">아직 모인 로그가 없습니다. 실행할 때 나온 터미널 출력을 붙여넣어 두면 실패 원인을 찾을 때와 발표 때 그대로 쓸 수 있습니다.</div>'}</section>`;
   }
   function logItem(l) {
     const t = byId(S.tasks, l.taskId), a = byId(S.attempts, l.attemptId);
-    return `<article class="item"><header><b class="r-${esc(l.result)}">${esc(l.result || '')}</b><code>${esc(l.command || '(명령어 없음)')}</code><span class="small muted">${esc(t ? t.title : '')}${a ? ' · ' + esc(a.title) : ''} · ${esc(authorName(l.author))} · ${fmtTime(l.createdAt)}</span>${db && !S.readOnly ? `<span style="margin-left:auto"><button class="ghost" data-del-log="${esc(l.id)}">삭제</button></span>` : ''}</header>
+    return `<article class="item"><header>${t ? badge(t) : ''}<b class="r-${esc(l.result)}">${esc(l.result || '')}</b><code>${esc(l.command || '(명령어 없음)')}</code><span class="small muted">${esc(t ? t.title : '')}${a ? ' · ' + esc(a.title) : ''} · ${esc(authorName(l.author))} · ${fmtTime(l.createdAt)}</span>${db && !S.readOnly ? `<span style="margin-left:auto"><button class="ghost" data-del-log="${esc(l.id)}">삭제</button></span>` : ''}</header>
       ${l.note ? `<div class="small">${esc(l.note)}</div>` : ''}<details ${S.openLog === l.id ? 'open' : ''}><summary class="small">출력 ${String(l.output || '').split('\n').length}줄</summary><pre>${esc(l.output || '')}</pre></details></article>`;
   }
 
   function vDeck() {
-    const A = S.attempts.filter(a => a.forDeck).sort((a, b) => ((byId(S.tasks, a.taskId) || {}).order || 0) - ((byId(S.tasks, b.taskId) || {}).order || 0));
-    const imgs = S.media;
+    const A = S.attempts.filter(a => a.forDeck && recTeamOk(a)).sort((a, b) => ((byId(S.tasks, a.taskId) || {}).order || 0) - ((byId(S.tasks, b.taskId) || {}).order || 0));
+    const imgs = S.media.filter(recTeamOk);
     return `<section class="grid" style="gap:14px"><div class="toolbar"><h2>발표 자료</h2><span class="small muted">시도 기록에서 "발표에 사용"을 켠 항목이 문제 → 원인 → 수정 → 결과 순서로 모입니다</span>
       <span style="margin-left:auto" class="row"><button data-act="copydeck" ${A.length ? '' : 'disabled'}>발표 요약 복사</button>${downloads ? `<button data-act="savedeck" ${A.length ? '' : 'disabled'}>Markdown 저장</button>` : ''}${assets && db && !S.readOnly ? '<button class="primary" data-act="newmedia">스크린샷 올리기</button>' : ''}</span></div>
       <div class="panel grid" style="gap:8px"><h3>발표 흐름 (자동)</h3><ol class="small" style="margin:0;padding-left:18px;display:grid;gap:4px">
-        <li>배경: 스마트팜 수확 노동 문제와 로봇 A의 역할(섹터 순회 · 사진 전송 · 탐지 결과를 B에 전달)</li>
-        <li>설계: 로봇 A 흐름도 ①~⑥, 토픽·메시지 정의</li>
+        <li>배경: 스마트팜 수확 노동 문제와 역할 분담 (로봇 A: 섹터 순회 · 사진 전송 · 탐지 결과 전달 / 로봇 B: 작업자 동행 · 개수 확인 · 집하장 운반)</li>
+        <li>설계: 로봇 A·B 흐름도 ①~⑥, A·B 연동 메시지 (연동 ${S.interfaces.filter(l => l.status === '연동 확인').length}/${S.interfaces.length} 확인)</li>
         <li>구현: 참고 코드에서 출발해 무엇을 바꿨는지 (아래 사례)</li>
         <li>테스트: 실행 로그와 결과 (주행, 비전 연동, B 연동, 배터리, 통합)</li>
-        <li>정리: 완료 ${aTasks().filter(t => t.status === '완료').length}/${aTasks().length} 작업, 남은 과제</li></ol></div>
+        <li>정리: 완료 ${teamTasks().filter(t => t.status === '완료').length}/${teamTasks().length} 작업, 남은 과제</li></ol></div>
       ${A.length ? A.map(storyCard).join('') : '<div class="empty">아직 발표용으로 고른 시도가 없습니다. 시도 기록에서 "발표에 사용"을 켜면 여기에 사례가 쌓입니다.</div>'}
       <div class="panel grid" style="gap:10px"><h3>스크린샷 · 사진</h3>${imgs.length ? `<div class="thumbs">${imgs.map(m => `<figure><a href="${esc(m.url)}" target="_blank" rel="noopener"><img src="${esc(m.url)}" alt="${esc(m.title)}" loading="lazy"></a><figcaption><b>${esc(m.title)}</b><br><span class="muted">${esc((byId(S.tasks, m.taskId) || {}).title || '')}</span></figcaption></figure>`).join('')}</div>` : `<div class="empty">${assets ? 'RViz 화면, 맵, 터미널 캡처를 올려 두면 발표 때 바로 쓸 수 있습니다.' : '이 화면에서는 이미지 업로드를 쓸 수 없습니다(편집 권한 필요).'}</div>`}</div>
     </section>`;
   }
   function storyCard(a) {
     const t = byId(S.tasks, a.taskId), r = byId(S.refs, a.refId), logs = S.logs.filter(l => l.attemptId === a.id);
-    return `<article class="panel story"><div class="row"><span class="tag">${esc(t ? t.phase : '')}</span><h3>${esc(t ? t.title : '')}</h3><span class="small muted">${esc(a.title)}</span></div>
+    return `<article class="panel story"><div class="row">${t ? badge(t) : ''}<span class="tag">${esc(t ? t.phase : '')}</span><h3>${esc(t ? t.title : '')}</h3><span class="small muted">${esc(a.title)}</span></div>
       ${r ? `<div class="step"><span>출발점</span><div><span class="path">${esc(r.path || r.title)}</span><div class="small muted">${esc(r.limits || '')}</div></div></div>` : ''}
       ${a.reason ? `<div class="step"><span>문제</span><div>${esc(a.reason)}</div></div>` : ''}
       ${a.fix ? `<div class="step"><span>수정</span><div>${esc(a.fix)}</div></div>` : ''}
@@ -366,11 +439,11 @@ pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 
       ${(a.baseCode || a.newCode) ? `<details><summary class="small">코드 비교</summary>${diffHtml(a.baseCode, a.newCode)}</details>` : ''}</article>`;
   }
   function deckMarkdown() {
-    const A = S.attempts.filter(a => a.forDeck);
-    let md = `# 로봇 A 개발 기록\n\n완료 ${aTasks().filter(t => t.status === '완료').length}/${aTasks().length} 작업\n`;
+    const A = S.attempts.filter(a => a.forDeck && recTeamOk(a));
+    let md = `# ${S.team === 'all' ? '수확 로봇 A·B' : '로봇 ' + S.team} 개발 기록\n\n완료 ${teamTasks().filter(t => t.status === '완료').length}/${teamTasks().length} 작업\n`;
     A.forEach(a => {
       const t = byId(S.tasks, a.taskId), r = byId(S.refs, a.refId);
-      md += `\n## ${t ? t.title : ''} — ${a.title}\n`;
+      md += `\n## [로봇 ${teamOf(t)}] ${t ? t.title : ''} — ${a.title}\n`;
       if (r) md += `- 출발점: ${r.path || r.title}\n`;
       if (a.reason) md += `- 문제: ${a.reason}\n`;
       if (a.fix) md += `- 수정: ${a.fix}\n`;
@@ -389,11 +462,11 @@ pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 
     const refs = (t.refIds || []).map(r => byId(S.refs, r)).filter(Boolean);
     const atts = S.attempts.filter(a => a.taskId === id).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
     const logs = S.logs.filter(l => l.taskId === id).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-    const editable = db && !S.readOnly && (t.team || 'A') === 'A';
+    const editable = db && !S.readOnly;
     const slots = Object.entries(t.slots || {}).filter(([, v]) => v).map(([k, v]) => `<span class="cell k-${esc(v)}" style="display:inline-grid;width:auto;padding:0 8px;cursor:default">${labelSlot(k)} · ${esc(v)}</span>`).join(' ');
     $('#layer').innerHTML = `<div class="sheet-bg" data-close="1"></div><aside class="sheet" role="dialog" aria-modal="true" aria-label="${esc(t.title)}" data-id="${esc(t.id)}">
-      <div class="row"><span class="tag">${esc(t.phase)}</span>${(t.charts || []).map(c => `<span class="tag">${c} ${CHART_NAMES[c] || ''}</span>`).join('')}<button class="ghost" style="margin-left:auto" data-close="1">닫기</button></div>
-      <h2>${esc(t.title)}</h2>
+      <div class="row">${badge(t)}<span class="tag">${esc(t.phase)}</span>${(t.charts || []).map(c => `<span class="tag">${c} ${chartName(t, c)}</span>`).join('')}<button class="ghost" style="margin-left:auto" data-close="1">닫기</button></div>
+      ${editable ? `<input id="tTitle" value="${esc(t.title)}" aria-label="세부항목" style="font-size:17px;font-weight:700">` : `<h2>${esc(t.title)}</h2>`}
       <div class="formgrid">
         <label>진행 상황<select id="tStatus" ${editable ? '' : 'disabled'}>${STATUSES.map(s => `<option ${t.status === s ? 'selected' : ''}>${s}</option>`).join('')}</select></label>
         <label>담당자<input id="tOwner" value="${esc(t.owner || '')}" ${editable ? '' : 'disabled'}></label>
@@ -420,7 +493,7 @@ pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 
     const first = $('input,select,textarea', form); if (first) first.focus();
     return form;
   }
-  const taskOptions = sel => aTasks().map(t => `<option value="${esc(t.id)}" ${t.id === sel ? 'selected' : ''}>${esc(t.order)}. ${esc(t.title)}</option>`).join('');
+  const taskOptions = sel => ['A', 'B'].filter(tm => S.team === 'all' || S.team === tm || teamOf(byId(S.tasks, sel)) === tm).map(tm => `<optgroup label="로봇 ${tm}">${sortTasks(S.tasks.filter(t => teamOf(t) === tm)).map(t => `<option value="${esc(t.id)}" ${t.id === sel ? 'selected' : ''}>${esc(t.order)}. ${esc(t.title)}</option>`).join('')}</optgroup>`).join('');
   const refOptions = sel => `<option value="">(없음)</option>` + [...S.refs].sort((a, b) => (a.order || 0) - (b.order || 0)).map(r => `<option value="${esc(r.id)}" ${r.id === sel ? 'selected' : ''}>${esc(r.path || r.title)}</option>`).join('');
 
   function attemptModal(taskId, existing) {
@@ -472,13 +545,15 @@ pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 
   function taskModal() {
     modal(`<h2>작업 추가</h2><div class="formgrid">
       <label class="full">세부항목<input name="title" required></label>
+      <label>팀<select name="team"><option ${S.team !== 'B' ? 'selected' : ''}>A</option><option ${S.team === 'B' ? 'selected' : ''}>B</option></select></label>
       <label>구분<select name="phase"><option>설계</option><option selected>구현</option><option>테스트</option></select></label>
-      <label>담당자<input name="owner"></label>
+      <label class="full">담당자<input name="owner"></label>
       <label class="full">흐름도 차트 (쉼표로 구분, 예: ①,②)<input name="charts"></label></div>`, async f => {
       const d = Object.fromEntries(new FormData(f).entries());
       if (!d.title.trim()) { toast('세부항목을 적어 주세요.'); return false; }
-      const order = Math.max(0, ...aTasks().map(t => t.order || 0)) + 1;
-      return write(() => db.collection('tasks').doc('t' + String(order).padStart(2, '0') + '-' + Math.random().toString(36).slice(2, 6)).set({ team: 'A', order, title: d.title.trim(), phase: d.phase, owner: d.owner, status: '예정', charts: d.charts.split(',').map(s => s.trim()).filter(Boolean), slots: {}, refIds: [], ...stamp() }), '작업을 추가했습니다.');
+      const tm = d.team === 'B' ? 'B' : 'A';
+      const order = Math.max(0, ...S.tasks.filter(t => teamOf(t) === tm).map(t => t.order || 0)) + 1;
+      return write(() => db.collection('tasks').doc((tm === 'A' ? 't' : 'b') + String(order).padStart(2, '0') + '-' + Math.random().toString(36).slice(2, 6)).set({ team: tm, order, title: d.title.trim(), phase: d.phase, owner: d.owner, status: '예정', charts: d.charts.split(',').map(s => s.trim()).filter(Boolean), slots: {}, refIds: [], ...stamp() }), '작업을 추가했습니다.');
     });
   }
   function refModal() {
@@ -524,7 +599,7 @@ pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 
     }
     if (el.dataset.saveTask) {
       const id = el.dataset.saveTask;
-      await write(() => db.doc('tasks/' + id).update({ status: $('#tStatus').value, owner: $('#tOwner').value, note: $('#tNote').value, ...stamp() }), '작업을 저장했습니다.');
+      await write(() => db.doc('tasks/' + id).update({ title: ($('#tTitle') ? $('#tTitle').value.trim() : '') || byId(S.tasks, id).title, status: $('#tStatus').value, owner: $('#tOwner').value, note: $('#tNote').value, ...stamp() }), '작업을 저장했습니다.');
       return;
     }
     if (el.dataset.editAttempt) { attemptModal(null, byId(S.attempts, el.dataset.editAttempt)); return; }
@@ -538,20 +613,48 @@ pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 
     if (act === 'copydeck') { const md = deckMarkdown(); try { await navigator.clipboard.writeText(md); toast('발표 요약을 복사했습니다.'); } catch (err) { modal(`<h2>발표 요약</h2><textarea class="code" rows="16" readonly>${esc(md)}</textarea>`, async () => true); } }
     if (act === 'savedeck') { try { await downloads.save({ filename: '로봇A_발표요약.md', data: deckMarkdown() }); } catch (err) { if (!err || err.code !== 'declined') toast('파일로 저장하지 못했습니다.'); } }
   });
+  document.addEventListener('click', e => {
+    const b = e.target.closest('.seg button[data-team]'); if (!b) return;
+    S.team = b.dataset.team; try { localStorage.setItem('team', S.team); } catch (err) {}
+    render(true); sharePresence();
+  });
+  document.addEventListener('focusout', () => setTimeout(() => { if (S.pendingRender && !editingInApp()) render(); }, 0));
+  document.addEventListener('change', async e => {
+    const el = e.target;
+    if (el.dataset.status) { await write(() => db.doc('tasks/' + el.dataset.status).update({ status: el.value, ...stamp() })); return; }
+    if (el.dataset.owner) { await write(() => db.doc('tasks/' + el.dataset.owner).update({ owner: el.value, ...stamp() })); return; }
+    if (el.dataset.link) { const [id, f] = el.dataset.link.split('|'); await write(() => db.doc('interfaces/' + id).update({ [f]: el.value, ...stamp() })); return; }
+  });
   document.addEventListener('change', e => {
-    if (e.target.id === 'showB') { S.showB = e.target.checked; render(); }
     if (e.target.id === 'fAttempt') { S.filterAttempt = e.target.value; render(); }
     if (e.target.id === 'fLog') { S.filterLog = e.target.value; render(); }
   });
   let qTimer; document.addEventListener('input', e => { if (e.target.id === 'logQ') { clearTimeout(qTimer); const v = e.target.value; qTimer = setTimeout(() => { S.logQuery = v; render(); const i = $('#logQ'); if (i) { i.focus(); i.setSelectionRange(v.length, v.length); } }, 250); } });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') { const m = document.querySelector('.modal'); if (m) m.parentElement.remove(); else if (view() === 'task') location.hash = lastView; } });
-  window.addEventListener('hashchange', () => { const v = view(); if (v !== 'task') lastView = v; render(); });
+  window.addEventListener('hashchange', () => { const v = view(); if (v !== 'task') lastView = v; render(true); sharePresence(); });
+
+  // ---------- who is here (live presence) ----------
+  const VIEW_NAMES = { overview: '현황', schedule: '일정', links: 'A·B 연동', refs: '참고 코드', attempts: '시도 기록', logs: '실행 로그', deck: '발표 자료' };
+  function sharePresence() {
+    if (!room) return;
+    const v = view(), t = v === 'task' ? byId(S.tasks, location.hash.slice(6)) : null;
+    room.presence({ team: S.team, where: t ? '작업: ' + t.title.slice(0, 30) : VIEW_NAMES[v] || '' }).catch(() => {});
+  }
+  async function renderPeople(peers) {
+    const box = $('#people'); if (!box) return;
+    const ids = [...new Set(peers.map(p => p.by).filter(Boolean))].filter(id => !(id in S.names));
+    if (ids.length && user) { try { const ps = await user.profiles(ids); ids.forEach(id => { S.names[id] = (ps[id] && ps[id].name) || '팀원'; }); } catch (e) {} }
+    const seen = new Map(); peers.forEach(p => { if (p.kind === 'viewer' && !seen.has(p.by || p.peer)) seen.set(p.by || p.peer, p); });
+    const list = [...seen.values()];
+    const live = db ? `<span class="live ${S.loaded.tasks ? 'on' : ''}"><i></i>${S.loaded.tasks ? '실시간 동기화 중' : '연결 중'}</span>` : '';
+    box.innerHTML = live + (list.length ? ` · 지금 접속: ${list.map(p => { const tm = p.presence && p.presence.team; const col = tm === 'B' ? '#3b6fd8' : tm === 'A' ? '#2f8a5a' : 'var(--muted)'; return `<span class="p"><i style="background:${col}"></i>${esc(p.isMe ? '나' : (S.names[p.by] || '팀원'))}<span class="muted">${esc((p.presence && p.presence.where) || '')}</span></span>`; }).join('')}` : '');
+  }
 
   // ---------- boot ----------
   if (view() !== 'task') lastView = view();
   render();
   (async () => {
-    [db, user, assets, downloads] = await Promise.all(['db', 'user', 'assets', 'downloads'].map(n => window.claude && window.claude.use ? window.claude.use(n).catch(() => null) : Promise.resolve(null)));
+    [db, user, assets, downloads, room] = await Promise.all(['db', 'user', 'assets', 'downloads', 'room'].map(n => window.claude && window.claude.use ? window.claude.use(n).catch(() => null) : Promise.resolve(null)));
     S.dbChecked = true;
     if (!db) { render(); return; }
     if (user) {
@@ -560,11 +663,13 @@ pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 
     }
     const timer = setTimeout(() => { S.timedOut = true; render(); }, 10000);
     let rq = null; const schedule = () => { if (rq) return; rq = requestAnimationFrame(() => { rq = null; render(); resolveNames(); }); };
-    ['tasks', 'refs', 'attempts', 'logs', 'media'].forEach(name => {
+    if (room) { sharePresence(); room.onPeers(ch => renderPeople(ch.peers), () => {}); }
+    COLLS.forEach(name => {
       db.collection(name).onSnapshot(snap => {
         S[name] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         if (!snap.metadata.fromCache) S.loaded[name] = true;
-        if (['tasks', 'refs', 'attempts', 'logs', 'media'].every(k => S.loaded[k])) { clearTimeout(timer); S.timedOut = false; }
+        if (COLLS.every(k => S.loaded[k])) { clearTimeout(timer); S.timedOut = false; }
+        if (room) renderPeople(room.peers());
         schedule();
       }, err => { S.loaded[name] = true; clearTimeout(timer); if (err && err.code === 'revoked') { db = null; } schedule(); });
     });

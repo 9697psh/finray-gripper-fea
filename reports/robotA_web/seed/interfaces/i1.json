@@ -1,0 +1,1 @@
+{"order": 1, "name": "사진 토픽", "from": "로봇 A", "to": "비전 인식 팀", "topic": "", "fields": "sensor_msgs/Image (섹터 도착 시 1장) + 섹터 ID · 층 · 촬영 시각", "status": "합의 전", "note": "카메라 원본: /oakd/rgb/preview/image_raw 또는 /oakd/rgb/image_raw/compressed 중 선택"}
