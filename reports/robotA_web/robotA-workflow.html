@@ -160,6 +160,15 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
 .codehead { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .codehead b { font-family: var(--mono); font-size: 13px; }
 .group-title { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
+.nodes { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+.nodes table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 12.5px; }
+.nodes th, .nodes td { padding: 5px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.nodes th { background: var(--panel-2); font-weight: 600; color: var(--muted); }
+.nodes td code { font-size: 12px; }
+.noderow { display: grid; grid-template-columns: 88px repeat(4, minmax(0, 1fr)) minmax(0, 1.3fr) 30px; gap: 6px; align-items: center; }
+.noderow input, .noderow select { padding: 5px 6px; font-size: 12px; }
+@media (max-width: 700px) { .noderow { grid-template-columns: 1fr 1fr; } .noderow .del { grid-column: 2; justify-self: end; } }
+.item.flash { animation: fresh 2.4s ease-out; }
 .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .toolbar input, .toolbar select { width: auto; max-width: 100%; }
 .toolbar > span.row { min-width: 0; max-width: 100%; flex: 1 1 260px; justify-content: flex-end; }
@@ -401,7 +410,7 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
 
   function vCode() {
     const can = db && !S.readOnly, ft = S.codeTask || 'all', q = (S.codeQuery || '').toLowerCase();
-    const C = S.code.filter(recTeamOk).filter(c => (ft === 'all' || c.taskId === ft) && (!q || [c.name, c.path, c.description, c.code, c.runCmd].join(' ').toLowerCase().includes(q)));
+    const C = S.code.filter(recTeamOk).filter(c => (ft === 'all' || c.taskId === ft) && (!q || [c.name, c.path, c.description, c.code, c.runCmd, ...(c.nodes || []).map(n => [n.pkg, n.exec, n.name, n.ns].join(' '))].join(' ').toLowerCase().includes(q)));
     const T = teamTasks().filter(t => C.some(c => c.taskId === t.id));
     const total = S.code.filter(recTeamOk).length, fin = S.code.filter(recTeamOk).filter(c => c.status === '최종').length;
     const covered = new Set(S.code.filter(recTeamOk).map(c => c.taskId)).size;
@@ -416,12 +425,51 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
         : `<div class="empty">${total ? '조건에 맞는 코드가 없습니다.' : '아직 등록한 코드가 없습니다. 작업에 넣은 노드·스크립트를 "코드 등록"으로 올려 두면 다른 팀도 어떤 코드가 어디에 쓰였는지 볼 수 있습니다.'}</div>`}
     </section>`;
   }
+  // ---------- launch files: child nodes ----------
+  function blocks(src, head) {
+    const out = []; let i = 0;
+    while ((i = src.indexOf(head, i)) !== -1) {
+      let j = i + head.length, depth = 1;
+      while (j < src.length && depth > 0) { const ch = src[j]; if (ch === '(') depth++; else if (ch === ')') depth--; j++; }
+      out.push(src.slice(i, j)); i = j;
+    }
+    return out;
+  }
+  const kw = (b, k) => { const m = b.match(new RegExp(k + "\\s*=\\s*['\"]([^'\"]+)['\"]")); return m ? m[1] : ''; };
+  const attr = (tag, k) => { const m = tag.match(new RegExp('\\s' + k + '\\s*=\\s*"([^"]*)"')); return m ? m[1] : ''; };
+  function parseLaunch(src) {
+    const nodes = [];
+    blocks(src, 'Node(').forEach(b => nodes.push({ kind: 'node', pkg: kw(b, 'package'), exec: kw(b, 'executable'), name: kw(b, 'name'), ns: kw(b, 'namespace'), note: /parameters\s*=/.test(b) ? '파라미터 있음' : '' }));
+    blocks(src, 'IncludeLaunchDescription(').forEach(b => {
+      const f = (b.match(/['"]([^'"]+\.launch\.(?:py|xml|yaml))['"]/) || [])[1] || ''; const pk = (b.match(/FindPackageShare\(\s*['"]([^'"]+)['"]/) || b.match(/get_package_share_directory\(\s*['"]([^'"]+)['"]/) || [])[1] || '';
+      nodes.push({ kind: 'include', pkg: pk, exec: f, name: '', ns: kw(b, 'namespace'), note: '' });
+    });
+    (src.match(/<node\b[^>]*>/g) || []).forEach(t => nodes.push({ kind: 'node', pkg: attr(t, 'pkg'), exec: attr(t, 'exec') || attr(t, 'type'), name: attr(t, 'name'), ns: attr(t, 'namespace') || attr(t, 'ns'), note: '' }));
+    (src.match(/<include\b[^>]*>/g) || []).forEach(t => { const f = attr(t, 'file'); const pk = (f.match(/find-pkg-share\s+([\w-]+)/) || [])[1] || ''; nodes.push({ kind: 'include', pkg: pk, exec: (f.split('/').pop() || f), name: '', ns: '', note: '' }); });
+    return nodes.filter(n => n.pkg || n.exec || n.name);
+  }
+  const stem = x => String(x || '').split('/').pop().replace(/\.(py|cpp|launch\.py|launch\.xml|xml)$/, '');
+  function guessCode(n, selfId) {
+    const want = stem(n.exec); if (!want) return null;
+    const hit = S.code.find(c => c.id !== selfId && (stem(c.name) === want || stem(c.path) === want));
+    return hit ? hit.id : null;
+  }
+  function nodesTable(c) {
+    const ns = c.nodes || []; if (!ns.length) return '';
+    const missing = ns.filter(n => !n.codeId && n.kind === 'node').length;
+    return `<details open><summary class="small">하위 노드 · 포함 런치 ${ns.length}개${missing ? ` <span class="r-부분">(코드 미등록 ${missing})</span>` : ''}</summary><div class="nodes"><table><thead><tr><th>종류</th><th>패키지</th><th>실행 파일 · 런치</th><th>이름 · 네임스페이스</th><th>연결된 사용 코드</th><th>메모</th></tr></thead><tbody>
+      ${ns.map(n => { const lc = byId(S.code, n.codeId); return `<tr><td>${n.kind === 'include' ? '포함 런치' : '노드'}</td><td><code>${esc(n.pkg)}</code></td><td><code>${esc(n.exec)}</code></td><td>${esc(n.name)}${n.ns ? ` <span class="muted">${esc(n.ns)}</span>` : ''}</td>
+        <td>${lc ? `<button class="ghost small" data-goto-code="${esc(lc.id)}">${esc(lc.name)} · ${esc(lc.status || '')}</button>` : '<span class="tag">코드 미등록</span>'}</td><td class="small">${esc(n.note || '')}</td></tr>`; }).join('')}
+      </tbody></table></div></details>`;
+  }
   function codeItem(c) {
     const r = byId(S.refs, c.refId), can = db && !S.readOnly, lines = String(c.code || '').split('\n').length;
-    return `<article class="item"><div class="codehead"><span class="pill ${codeCls(c.status)}">${esc(c.status || '작성 중')}</span><b>${esc(c.name || '(이름 없음)')}</b>${c.lang ? `<span class="tag">${esc(c.lang)}</span>` : ''}
+    const usedBy = S.code.filter(x => (x.nodes || []).some(n => n.codeId === c.id));
+    return `<article class="item" id="code-${esc(c.id)}"><div class="codehead"><span class="pill ${codeCls(c.status)}">${esc(c.status || '작성 중')}</span><b>${esc(c.name || '(이름 없음)')}</b>${c.lang ? `<span class="tag">${esc(c.lang)}</span>` : ''}
       <span class="small muted">${esc(authorName(c.updatedBy || c.author))} · ${fmtTime(c.updatedAt || c.createdAt)}</span>
       ${can ? `<span style="margin-left:auto" class="row"><button class="ghost" data-edit-code="${esc(c.id)}">수정</button><button class="ghost" data-del-code="${esc(c.id)}">삭제</button></span>` : ''}</div>
-      <dl class="kv">${c.path ? `<dt>위치</dt><dd class="path">${esc(c.path)}${c.commit ? ' @ ' + esc(c.commit) : ''}</dd>` : ''}${c.description ? `<dt>하는 일</dt><dd>${esc(c.description)}</dd>` : ''}${c.runCmd ? `<dt>실행</dt><dd><code>${esc(c.runCmd)}</code></dd>` : ''}${r ? `<dt>기반 코드</dt><dd class="path">${esc(r.path || r.title)}</dd>` : ''}</dl>
+      <dl class="kv">${c.path ? `<dt>위치</dt><dd class="path">${esc(c.path)}${c.commit ? ' @ ' + esc(c.commit) : ''}</dd>` : ''}${c.description ? `<dt>하는 일</dt><dd>${esc(c.description)}</dd>` : ''}${c.runCmd ? `<dt>실행</dt><dd><code>${esc(c.runCmd)}</code></dd>` : ''}${r ? `<dt>기반 코드</dt><dd class="path">${esc(r.path || r.title)}</dd>` : ''}${usedBy.length ? `<dt>실행하는 런치</dt><dd>${usedBy.map(x => `<button class="ghost small" data-goto-code="${esc(x.id)}">${esc(x.name)}</button>`).join(' ')}</dd>` : ''}</dl>
+      ${nodesTable(c)}
       ${c.code ? `<details><summary class="small">코드 보기 (${lines}줄)</summary><pre>${esc(c.code)}</pre></details>` : ''}
       ${r && r.code && c.code ? `<details><summary class="small">기반 코드 대비 바뀐 부분</summary>${diffHtml(r.code, c.code)}</details>` : ''}</article>`;
   }
@@ -579,16 +627,48 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
         <label>기반 참고 코드<select name="refId">${refOptions(c.refId)}</select></label>
         <label class="full">실행 명령<input name="runCmd" value="${esc(c.runCmd || '')}" placeholder="예: ros2 run robot_a sector_patrol --ros-args -r __ns:=/robot3"></label>
         <label class="full">하는 일<textarea name="description" placeholder="예: 섹터 목록을 순서대로 돌며 도착하면 사진 토픽을 발행">${esc(c.description || '')}</textarea></label>
+        <div class="full grid" id="nodeBox" style="gap:6px" ${c.lang === 'Launch' ? '' : 'hidden'}>
+          <div class="row" style="justify-content:space-between"><span class="small" style="font-weight:600">하위 노드 · 포함 런치</span><span class="row"><button type="button" class="ghost small" data-parse>런치 코드에서 자동 추출</button><button type="button" class="ghost small" data-addnode>직접 추가</button></span></div>
+          <div class="noderow small muted"><span>종류</span><span>패키지</span><span>실행 파일 · 런치</span><span>이름</span><span>네임스페이스</span><span>연결할 사용 코드</span><span></span></div>
+          <div id="nodeRows" class="grid" style="gap:6px"></div>
+        </div>
         <label class="full"><span class="row" style="justify-content:space-between">코드<input type="file" id="codeFile" accept=".py,.cpp,.hpp,.h,.yaml,.yml,.launch,.xml,.sh,.txt,.json" style="width:auto"></span><textarea name="code" class="code" rows="14">${esc(c.code || '')}</textarea></label>
       </div>`, async f => {
       const d = Object.fromEntries(new FormData(f).entries());
       if (!d.name.trim()) { toast('파일 · 노드 이름을 적어 주세요.'); return false; }
       if (d.code.length > 80000) { toast('코드가 너무 깁니다(8만 자 이하). 파일을 나눠 등록해 주세요.'); return false; }
-      const body = { taskId: d.taskId, name: d.name.trim(), status: d.status, path: d.path, commit: d.commit, lang: d.lang, refId: d.refId || null, runCmd: d.runCmd, description: d.description, code: d.code };
+      const nodes = d.lang === 'Launch' ? [...f.querySelectorAll('#nodeRows .noderow')].map(r => ({ kind: r.querySelector('[data-k=kind]').value, pkg: r.querySelector('[data-k=pkg]').value.trim(), exec: r.querySelector('[data-k=exec]').value.trim(), name: r.querySelector('[data-k=name]').value.trim(), ns: r.querySelector('[data-k=ns]').value.trim(), codeId: r.querySelector('[data-k=codeId]').value || null, note: r.dataset.note || '' })).filter(n => n.pkg || n.exec || n.name) : (existing && existing.nodes) || [];
+      const body = { taskId: d.taskId, name: d.name.trim(), status: d.status, path: d.path, commit: d.commit, lang: d.lang, refId: d.refId || null, runCmd: d.runCmd, description: d.description, code: d.code, nodes };
       if (existing) return write(() => db.doc('code/' + existing.id).update({ ...body, ...stamp() }), '사용 코드를 고쳤습니다.');
       return write(() => db.collection('code').add({ ...body, author: S.me || null, createdAt: new Date().toISOString(), ...stamp() }), '코드를 등록했습니다.');
     });
-    $('#codeFile', form).addEventListener('change', e => { const file = e.target.files[0]; if (!file) return; const rd = new FileReader(); rd.onload = () => { form.code.value = String(rd.result); if (!form.name.value) form.name.value = file.name; }; rd.readAsText(file); });
+    $('#codeFile', form).addEventListener('change', e => { const file = e.target.files[0]; if (!file) return; const rd = new FileReader(); rd.onload = () => { form.code.value = String(rd.result); if (!form.name.value) form.name.value = file.name; if (/launch/i.test(file.name)) { form.lang.value = 'Launch'; $('#nodeBox', form).hidden = false; } }; rd.readAsText(file); });
+    const selfId = existing ? existing.id : null;
+    const codeOpts = sel => `<option value="">(연결 안 함)</option>` + S.code.filter(x => x.id !== selfId).map(x => `<option value="${esc(x.id)}" ${x.id === sel ? 'selected' : ''}>${esc(x.name)}${x.status ? ' · ' + esc(x.status) : ''}</option>`).join('');
+    const addRow = n => {
+      const r = document.createElement('div'); r.className = 'noderow'; r.dataset.note = n.note || '';
+      r.innerHTML = `<select data-k="kind" aria-label="종류"><option value="node" ${n.kind !== 'include' ? 'selected' : ''}>노드</option><option value="include" ${n.kind === 'include' ? 'selected' : ''}>포함 런치</option></select>
+        <input data-k="pkg" value="${esc(n.pkg || '')}" placeholder="robot_a" aria-label="패키지"><input data-k="exec" value="${esc(n.exec || '')}" placeholder="sector_patrol" aria-label="실행 파일"><input data-k="name" value="${esc(n.name || '')}" aria-label="노드 이름"><input data-k="ns" value="${esc(n.ns || '')}" placeholder="/robot3" aria-label="네임스페이스">
+        <select data-k="codeId" aria-label="연결할 사용 코드">${codeOpts(n.codeId)}</select><button type="button" class="ghost del" aria-label="이 행 삭제">×</button>`;
+      $('.del', r).addEventListener('click', () => r.remove());
+      $('#nodeRows', form).appendChild(r);
+    };
+    (c.nodes || []).forEach(addRow);
+    form.lang.addEventListener('change', () => { $('#nodeBox', form).hidden = form.lang.value !== 'Launch'; });
+    $('[data-addnode]', form).addEventListener('click', () => addRow({ kind: 'node' }));
+    $('[data-parse]', form).addEventListener('click', () => {
+      const found = parseLaunch(form.code.value);
+      if (!found.length) { toast('런치 코드에서 Node( · IncludeLaunchDescription( · <node> · <include>를 찾지 못했습니다. 직접 추가해 주세요.'); return; }
+      const rows = () => [...form.querySelectorAll('#nodeRows .noderow')];
+      const val = (r, k) => r.querySelector('[data-k=' + k + ']').value;
+      let added = 0, filled = 0;
+      found.forEach(n => {
+        const same = rows().find(r => val(r, 'pkg') === n.pkg && val(r, 'exec') === n.exec && (!val(r, 'name') || !n.name || val(r, 'name') === n.name));
+        if (same) { ['name', 'ns'].forEach(k => { if (!val(same, k) && n[k]) { same.querySelector('[data-k=' + k + ']').value = n[k]; filled++; } }); if (!val(same, 'codeId')) { const g = guessCode(n, selfId); if (g) { same.querySelector('[data-k=codeId]').value = g; filled++; } } return; }
+        addRow({ ...n, codeId: guessCode(n, selfId) }); added++;
+      });
+      toast(added || filled ? `새 항목 ${added}개 추가${filled ? `, 기존 행 ${filled}칸 채움` : ''}. 연결된 사용 코드를 확인하고 저장하세요.` : '새로 찾은 항목이 없습니다.');
+    });
   }
   function logModal(taskId) {
     const form = modal(`<h2>실행 로그 추가</h2>
@@ -651,6 +731,15 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
 
   // ---------- events ----------
   document.addEventListener('click', async e => {
+    const go = e.target.closest('[data-goto-code]');
+    if (go) {
+      const cid = go.dataset.gotoCode; const c = byId(S.code, cid); if (!c) return;
+      const t = byId(S.tasks, c.taskId); if (t && !inTeam(t)) { S.team = 'all'; try { localStorage.setItem('team', 'all'); } catch (err) {} }
+      S.codeTask = 'all'; S.codeQuery = '';
+      if (location.hash !== '#code') { lastView = 'code'; location.hash = 'code'; } else render(true);
+      setTimeout(() => { const n = document.getElementById('code-' + cid); if (n) { n.scrollIntoView({ block: 'center', behavior: 'smooth' }); n.classList.add('flash'); } }, 120);
+      return;
+    }
     const el = e.target.closest('[data-open],[data-close],[data-cell],[data-act],[data-save-task],[data-edit-attempt],[data-del-log],[data-edit-code],[data-del-code]');
     if (!el) return;
     if (el.dataset.open) { lastView = view() === 'task' ? lastView : view(); location.hash = 'task-' + el.dataset.open; return; }
