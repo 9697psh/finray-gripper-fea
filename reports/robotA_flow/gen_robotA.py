@@ -30,7 +30,7 @@ DASH = 'endArrow=none;html=1;dashed=1;strokeColor=#888888;strokeWidth=1;'
 SIDE = {'t': (0.5, 0), 'b': (0.5, 1), 'l': (0, 0.5), 'r': (1, 0.5)}
 SIZE = {'term': (200, 46), 'proc': (260, 47), 'dec': (236, 92), 'io': (260, 47), 'sub': (260, 47),
         'db': (260, 60), 'off': (210, 56), 'note': (250, 52)}
-SUBH = {'proc': 63, 'io': 63, 'db': 79, 'dec': 104}
+SUBH = {'proc': 63, 'io': 63, 'db': 79, 'dec': 104, 'sub': 63}
 
 cells = []
 uid = [0]
@@ -153,7 +153,7 @@ def overall(p):
     y += GAP
     y = p.node('n2', 'proc', '탐색 섹터 목록 준비', '4개 섹터 · 순서 · 좌표', y=y) + GAP
     y = p.node('sp1', 'sub', '① 섹터 이동', y=y) + GAP
-    y = p.node('sp2', 'sub', '② 토마토 탐지 · 수량 정리', y=y) + GAP
+    y = p.node('sp2', 'sub', '② 사진 전송 · 탐지 결과 받기', y=y) + GAP
     y = p.node('sp3', 'sub', '③ 로봇 B에 작업 정보 전송', y=y) + GAP
     y = p.node('d2', 'dec', '남은 섹터 있음?', 'i &lt; 전체 섹터 수', y=y) + GAP
     y = p.node('io1', 'io', '탐색 완료 보고 전송', '섹터별 탐지 · 전송 결과', y=y) + GAP
@@ -164,7 +164,8 @@ def overall(p):
     nb = p.node('nt1', 'note', '배터리가 부족하면 충전 위치로<br>복귀 후 이어서 (①에서 확인)', col='side', y=p.mid_y('sp1') - 26)
     p.node('nt2', 'note', '전송 후 로봇 B가 작업하는 동안<br>A는 다음 섹터를 먼저 탐색 (선행 탐색)', col='side', y=p.mid_y('sp3') - 26)
     p.node('nt3', 'note', '⑥ 비상 상황 처리는<br>모든 단계에서 항상 감시', col='side', y=p.mid_y('n2') - 26)
-    for a, b in (('sp1', 'nt1'), ('sp3', 'nt2'), ('n2', 'nt3')):
+    p.node('nt4', 'note', '토마토 인식(YOLO)은 비전 인식 팀이 수행<br>A는 사진 토픽 발행 · 결과 토픽 수신', col='side', y=p.mid_y('sp2') - 26)
+    for a, b in (('sp1', 'nt1'), ('sp3', 'nt2'), ('n2', 'nt3'), ('sp2', 'nt4')):
         edge(p.id(a), p.id(b), style=DASH + 'exitX=1;exitY=0.5;entryX=0;entryY=0.5;')
     # flow
     seq = ['s', 'n1', 'd1']
@@ -199,10 +200,10 @@ def overall(p):
         vertex(small[k], '', lx, yy, 48, 26)
         vertex(ST['legtxt'], t, lx + 58, yy, 220, 26)
     sy = ly + 34 + len(items) * 36 + 24
-    vertex(ST['scope'], '<b>로봇 A 담당 범위</b><br>① Nav2로 섹터 순회 · 도착 확인<br>② YOLO로 토마토 탐지<br>'
+    vertex(ST['scope'], '<b>로봇 A 담당 범위</b><br>① Nav2로 섹터 순회 · 도착 확인<br>② 사진 토픽 발행 · 탐지 결과 수신<br>'
            '③ 섹터별 목표 · 의심 수량 전송<br>④ B 작업 중 다음 섹터 선행 탐색<br>'
-           '⑤ B가 끝낸 섹터 미수확 재확인<br><br><b>제외 (로봇 B):</b><br>투입구 계수 · 작업자 완료 버튼 · 집하장 이동',
-           lx, sy, 270, 178)
+           '⑤ B가 끝낸 섹터 미수확 재확인<br><br><b>제외 (로봇 B):</b><br>투입구 계수 · 작업자 완료 버튼 · 집하장 이동<br><br><b>제외 (비전 인식 팀):</b><br>YOLO 토마토 인식 · 결과 토픽 발행',
+           lx, sy, 290, 230)
     return y - p.y
 
 
@@ -221,7 +222,7 @@ def sector_move(p):
     p.node('of2', 'off', '③ 전송으로 (실패 상태)', col='side', y=p.bottom('xf') + GAP)
     y += GAP
     y = p.node('ns', 'proc', '정지 · 촬영 위치 확보', '카메라 영상 준비', y=y) + GAP
-    y = p.node('of1', 'off', '② 토마토 탐지로', y=y) + 50
+    y = p.node('of1', 'off', '② 사진 전송으로', y=y) + 50
     edge(p.id('s'), p.id('db1'))
     edge(p.id('db1'), p.id('ch'), '아니오', ex='r', en='l')
     ymid = (p.bottom('s') + p.top('db1')) / 2
@@ -241,27 +242,43 @@ def sector_move(p):
 def detect(p):
     y = p.y + TOP
     y = p.node('s', 'term', '시작', y=y) + GAP
-    y = p.node('c1', 'proc', '층별 촬영', '1층 … N층 · 각도별 영상', y=y) + GAP
-    y = p.node('c2', 'proc', 'YOLO로 토마토 탐지', '익음 · 미숙 · 병충해 의심', y=y) + GAP
+    y = p.node('c1', 'proc', '층별 촬영', '1층 … N층 · 각도별 사진', y=y) + GAP
+    p.node('nt', 'note', 'YOLO 추론은 로봇에서 하지 않음<br>비전 인식 팀이 사진을 받아 처리', col='side', y=p.mid_y('c1') - 26)
+    y = p.node('c2', 'io', '사진 토픽 발행 → 비전 인식 팀', '섹터 ID · 층 · 촬영 시각 포함', y=y) + GAP
+    y = p.node('c3', 'proc', '탐지 결과 기다리기', '비전 팀 결과 토픽 구독', y=y) + GAP
+    y = p.node('dt', 'dec', '제한 시간 안에<br>결과 받음?', y=y)
+    p.node('dr', 'dec', '재요청 3회 넘음?', col='side', y=p.mid_y('dt') - 46)
+    p.node('xh', 'io', '비전 응답 없음 알림', "섹터 '탐지 보류' 표시 · 나중에 재촬영", col='side', y=p.bottom('dr') + GAP)
+    p.node('ofh', 'off', '③ 전송으로 (탐지 보류)', col='side', y=p.bottom('xh') + GAP)
+    y += GAP
+    y = max(y, p.bottom('ofh') - 20)
+    y = p.node('c4', 'io', '탐지 결과 받기', '익음 · 미숙 · 병충해 의심 · 신뢰도', y=y) + GAP
     y = p.node('dc', 'dec', '신뢰도 ≥ 기준?', y=y)
-    p.node('c3', 'proc', "'의심'으로 분류", '사람 확인 필요 표시', col='side', y=p.mid_y('dc') - 31.5)
+    p.node('c3b', 'proc', "'의심'으로 분류", '사람 확인 필요 표시', col='side', y=p.mid_y('dc') - 31.5)
     y += GAP
-    y = p.node('c4', 'proc', '섹터별 수량 정리', '익음 = 수확 목표 · 미숙 · 의심', y=y) + GAP
-    y = p.node('dr', 'dec', '익은 토마토<br>있음?', y=y)
-    p.node('c6', 'db', '수확 대상에서 제외', '목표 0 · 미숙 · 의심만 기록', col='side', y=p.mid_y('dr') - 39.5)
+    y = p.node('c5', 'proc', '섹터별 수량 정리', '익음 = 수확 목표 · 미숙 · 의심', y=y) + GAP
+    y = p.node('dr2', 'dec', '익은 토마토<br>있음?', y=y)
+    p.node('c7', 'db', '수확 대상에서 제외', '목표 0 · 미숙 · 의심만 기록', col='side', y=p.mid_y('dr2') - 39.5)
     y += GAP
-    y = p.node('c5', 'db', '수확 목표 n개 저장', '섹터 ID · 익음 n · 미숙 · 의심', y=y) + GAP
+    y = p.node('c6', 'db', '수확 목표 n개 저장', '섹터 ID · 익음 n · 미숙 · 의심', y=y) + GAP
     y = p.node('of', 'off', '③ 작업 정보 전송으로', y=y) + 50
-    for a, b in (('s', 'c1'), ('c1', 'c2'), ('c2', 'dc')):
+    edge(p.id('c1'), p.id('nt'), style=DASH + 'exitX=1;exitY=0.5;entryX=0;entryY=0.5;')
+    for a, b in (('s', 'c1'), ('c1', 'c2'), ('c2', 'c3'), ('c3', 'dt')):
         edge(p.id(a), p.id(b))
-    edge(p.id('dc'), p.id('c3'), '아니오', ex='r', en='l')
-    edge(p.id('c3'), p.id('c4'), ex='b', en='r', pts=[(p.sx, p.mid_y('c4'))])
-    edge(p.id('dc'), p.id('c4'), '예')
-    edge(p.id('c4'), p.id('dr'))
-    edge(p.id('dr'), p.id('c6'), '아니오', ex='r', en='l')
-    edge(p.id('dr'), p.id('c5'), '예')
-    edge(p.id('c5'), p.id('of'))
-    edge(p.id('c6'), p.id('of'), ex='b', en='r', pts=[(p.sx, p.mid_y('of') - 6)])
+    edge(p.id('dt'), p.id('dr'), '아니오', ex='r', en='l')
+    edge(p.id('dr'), p.id('c2'), '아니오', sub='사진 다시 보내기', ex='t', en='r', pts=[(p.sx, p.mid_y('c2'))], lx=-0.5)
+    edge(p.id('dr'), p.id('xh'), '예')
+    edge(p.id('xh'), p.id('ofh'))
+    edge(p.id('dt'), p.id('c4'), '예')
+    edge(p.id('c4'), p.id('dc'))
+    edge(p.id('dc'), p.id('c3b'), '아니오', ex='r', en='l')
+    edge(p.id('c3b'), p.id('c5'), ex='b', en='r', pts=[(p.sx, p.mid_y('c5'))])
+    edge(p.id('dc'), p.id('c5'), '예')
+    edge(p.id('c5'), p.id('dr2'))
+    edge(p.id('dr2'), p.id('c7'), '아니오', ex='r', en='l')
+    edge(p.id('dr2'), p.id('c6'), '예')
+    edge(p.id('c6'), p.id('of'))
+    edge(p.id('c7'), p.id('of'), ex='b', en='r', pts=[(p.sx, p.mid_y('of') - 6)])
     return y - p.y
 
 
@@ -293,7 +310,7 @@ def recheck(p):
     y = p.node('w', 'proc', '로봇 B 완료 알림 기다리기', '배터리 부족 시 충전 후 복귀', y=y) + GAP
     y = p.node('d1', 'dec', '섹터 완료 알림<br>받음?', y=y) + GAP
     y = p.node('r1', 'proc', '완료된 섹터로 이동', 'Nav2', y=y) + GAP
-    y = p.node('r2', 'proc', '대상 재확인', 'YOLO로 남은 익은 토마토 확인', y=y) + GAP
+    y = p.node('r2', 'sub', '대상 재확인 (② 방식)', '재촬영 사진 발행 → 비전 팀 결과로 남은 개수 확인', y=y, w=300) + GAP
     y = p.node('d2', 'dec', '미수확 토마토<br>있음?', y=y)
     p.node('r3', 'db', '미수확 구역 정보 갱신', '섹터 ID · 남은 개수 · 좌표', col='side', y=p.mid_y('d2') - 39.5)
     p.node('r4', 'io', '로봇 B에 미수확 구역 전송', '다시 수확 요청', col='side', y=p.bottom('r3') + GAP)
@@ -341,7 +358,7 @@ def emergency(p):
     y = p.node('g1', 'proc', '로봇 상태 확인', '비상 버튼 · 통신 · 카메라 · 배터리', y=y) + GAP
     rows = [('d1', '비상정지<br>버튼 눌림?', 'h1', '즉시 정지', '작업 상태 저장'),
             ('d2', '통신이 3초 이상<br>끊김?', 'h2', '정지 · 경고 표시', '다시 연결 시도 · 결과 보관'),
-            ('d3', '카메라 인식<br>이상?', 'h3', '탐지 일시 중지 · 경고', '해당 섹터 재탐색 예약'),
+            ('d3', '카메라 이상 또는<br>비전 결과 끊김?', 'h3', '촬영 · 전송 일시 중지 · 경고', '해당 섹터 재촬영 예약'),
             ('d4', '배터리 부족?', 'h4', '현재 섹터 저장', '충전 위치로 복귀')]
     for d, dt, h, ht, hs in rows:
         y = p.node(d, 'dec', dt, y=y)
@@ -371,13 +388,13 @@ def main(out):
     X0, Y0, GX, GY = 40, 40, 60, 60
     W_OV, W = 1130, 820
     p0 = build_panel(overall, X0, Y0, W_OV, '로봇 A 전체 흐름',
-                     '섹터 이동 → 토마토 탐지 · 수량 정리 → 로봇 B에 작업 정보 전송을 섹터마다 반복하고, B가 끝낸 섹터는 다시 확인',
+                     '섹터 이동 → 사진 전송 · 비전 팀 탐지 결과 받기 → 로봇 B에 작업 정보 전송을 섹터마다 반복하고, B가 끝낸 섹터는 다시 확인',
                      '로봇 A 담당: BR-__ (번호 입력)')
     x1 = X0 + W_OV + GX
     a1 = build_panel(sector_move, x1, Y0, W, '① 섹터 이동',
                 '배터리를 확인하고 섹터 i까지 경로를 정해 Nav2로 이동한 뒤 촬영 위치에 정지', '관련: BR-__')
-    a2 = build_panel(detect, x1 + W + GX, Y0, W, '② 토마토 탐지 · 수량 정리',
-                '층별로 찍은 영상을 YOLO로 분석해 익음 · 미숙 · 의심 개수를 섹터별로 정리', '관련: BR-__')
+    a2 = build_panel(detect, x1 + W + GX, Y0, W, '② 사진 전송 · 탐지 결과 받기',
+                '층별 사진을 토픽으로 비전 인식 팀에 보내고, 돌려받은 탐지 결과로 익음 · 미숙 · 의심 개수를 섹터별로 정리', '관련: BR-__')
     a3 = build_panel(send, x1 + 2 * (W + GX), Y0, W, '③ 로봇 B에 작업 정보 전송',
                 '로봇 B가 받는 형식(섹터 번호 · 목표 개수 · 병충해 의심 개수)으로 보내고, 수신 확인 후 기록', '관련: BR-__')
     y2 = Y0 + max(a1.h, a2.h, a3.h) + GY
