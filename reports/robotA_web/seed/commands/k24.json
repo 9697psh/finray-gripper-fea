@@ -1,0 +1,1 @@
+{"order": 24, "part": "도킹·배터리", "team": "공통", "title": "도킹 해제 · 도킹", "cmd": "ros2 action send_goal /robot<n>/undock irobot_create_msgs/action/Undock \"{}\"\nros2 action send_goal /robot<n>/dock irobot_create_msgs/action/Dock \"{}\"", "terminal": "", "source": "Day2 PDF", "verified": "강의 자료", "taskIds": ["t15", "b03"], "note": ""}

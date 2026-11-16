@@ -1,0 +1,1 @@
+{"order": 31, "part": "빌드·실행", "team": "A", "title": "결과 웹 서버 실행 (Flask + SQLite)", "cmd": "python3 9_TBL_on_Web.py", "terminal": "", "source": "Day5 코드", "verified": "강의 자료", "taskIds": ["t09"], "note": "실행할 때마다 기존 행을 지우므로 초기화 부분을 빼고 사용"}

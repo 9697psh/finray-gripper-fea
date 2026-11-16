@@ -169,6 +169,16 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
 .noderow input, .noderow select { padding: 5px 6px; font-size: 12px; }
 @media (max-width: 700px) { .noderow { grid-template-columns: 1fr 1fr; } .noderow .del { grid-column: 2; justify-self: end; } }
 .item.flash { animation: fresh 2.4s ease-out; }
+.cmd { display: grid; gap: 6px; }
+.cmd pre { max-height: none; white-space: pre-wrap; word-break: break-all; position: relative; padding-right: 64px; }
+.cmd .copy { position: absolute; top: 6px; right: 6px; padding: 3px 8px; font-size: 11.5px; }
+.cmdhead { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.v-강의 { background: var(--accent-soft); color: var(--fg); } .v-확인 { background: var(--spare); color: #3a2208; } .v-동작 { background: var(--done); color: #08223c; }
+.partnav { display: flex; gap: 6px; flex-wrap: wrap; }
+.partnav button { border-radius: 999px; padding: 4px 10px; font-size: 12.5px; }
+.partnav button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
+.nsbox { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; font-size: 12.5px; }
+.nsbox input { width: 120px; }
 .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .toolbar input, .toolbar select { width: auto; max-width: 100%; }
 .toolbar > span.row { min-width: 0; max-width: 100%; flex: 1 1 260px; justify-content: flex-end; }
@@ -188,6 +198,7 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
     <a href="#links" data-v="links">A·B 연동</a>
     <a href="#refs" data-v="refs">참고 코드</a>
     <a href="#code" data-v="code">사용 코드</a>
+    <a href="#cmds" data-v="cmds">명령어</a>
     <a href="#attempts" data-v="attempts">시도 기록</a>
     <a href="#logs" data-v="logs">실행 로그</a>
     <a href="#deck" data-v="deck">발표 자료</a>
@@ -212,6 +223,9 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
     B: { '전체': '전체 흐름', '①': '작업 받기·섹터 이동', '②': '토마토 개수 세기', '③': '완료 확인·기록', '④': '바구니 비우기', '⑤': '작업 마무리', '⑥': '비상 상황 처리' } };
   const LINK_STATUS = ['합의 전', '합의', '구현', '연동 확인'];
   const CODE_STATUS = ['작성 중', '동작 확인', '최종'];
+  const PARTS_CMD = ['준비·환경', 'SLAM·맵', '로컬라이제이션·Nav2', '주행 예제', '카메라·사진 토픽', '토픽 확인·디버깅', '연동 테스트', '도킹·배터리', '복구', '빌드·실행'];
+  const VERIFY = ['강의 자료', '확인 필요', '동작 확인'];
+  const vCls = v => v === '동작 확인' ? 'v-동작' : v === '확인 필요' ? 'v-확인' : 'v-강의';
   const codeCls = st => st === '최종' ? 's-최종' : st === '동작 확인' ? 's-완료' : 's-진행';
   const MILESTONES = [
     { at: '2026-11-17T09:30:00+09:00', label: '11/17(화)', text: 'Final Project 코드 리뷰 평가 (Day6)' },
@@ -223,7 +237,7 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
   const nextMilestone = () => MILESTONES.find(m => new Date(m.at) > Date.now());
 
   // ---------- state ----------
-  const S = { tasks: [], refs: [], attempts: [], logs: [], media: [], interfaces: [], code: [], loaded: {}, team: (() => { try { return localStorage.getItem('team') || 'all'; } catch (e) { return 'all'; } })(), me: null, canWrite: null, readOnly: false, names: {} };
+  const S = { tasks: [], refs: [], attempts: [], logs: [], media: [], interfaces: [], code: [], commands: [], settings: [], loaded: {}, team: (() => { try { return localStorage.getItem('team') || 'all'; } catch (e) { return 'all'; } })(), me: null, canWrite: null, readOnly: false, names: {} };
   let db = null, user = null, assets = null, downloads = null, room = null;
 
   // ---------- helpers ----------
@@ -286,7 +300,7 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
   const stamp = () => ({ updatedAt: new Date().toISOString(), updatedBy: S.me || null });
 
   // ---------- views ----------
-  function view() { const h = location.hash.replace('#', ''); if (h.startsWith('task-')) return 'task'; return ['overview', 'schedule', 'links', 'refs', 'code', 'attempts', 'logs', 'deck'].includes(h) ? h : 'overview'; }
+  function view() { const h = location.hash.replace('#', ''); if (h.startsWith('task-')) return 'task'; return ['overview', 'schedule', 'links', 'refs', 'code', 'cmds', 'attempts', 'logs', 'deck'].includes(h) ? h : 'overview'; }
   function editingInApp() { const a = document.activeElement; return a && $('#app').contains(a) && /INPUT|TEXTAREA|SELECT/.test(a.tagName); }
   function render(force) {
     if (!force && editingInApp()) { S.pendingRender = true; return; }
@@ -300,12 +314,12 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
     if (!db && S.dbChecked) pre = '<div class="notice warn">공유 저장소를 쓸 수 없는 화면입니다(로그인하지 않았거나 권한이 없음). 기록 보기·저장이 막혀 있습니다.</div>';
     else if (S.timedOut && !ready) pre = '<div class="notice warn">저장소 응답이 늦습니다. 잠시 후 자동으로 채워집니다.</div>';
     else if (S.readOnly) pre = '<div class="notice">보기 전용입니다. 기록을 남기려면 공유 설정에서 참여자(Contributor) 이상 권한을 받아야 합니다.</div>';
-    const body = { overview: vOverview, schedule: vSchedule, links: vLinks, refs: vRefs, code: vCode, attempts: vAttempts, logs: vLogs, deck: vDeck, task: vOverview }[v === 'task' ? (lastView || 'overview') : v]();
+    const body = { overview: vOverview, schedule: vSchedule, links: vLinks, refs: vRefs, code: vCode, cmds: vCmds, attempts: vAttempts, logs: vLogs, deck: vDeck, task: vOverview }[v === 'task' ? (lastView || 'overview') : v]();
     app.innerHTML = pre + body;
     if (v === 'task') openTask(location.hash.slice(6)); else closeSheet();
   }
   let lastView = 'overview';
-  const COLLS = ['tasks', 'refs', 'attempts', 'logs', 'media', 'interfaces', 'code'];
+  const COLLS = ['tasks', 'refs', 'attempts', 'logs', 'media', 'interfaces', 'code', 'commands', 'settings'];
 
   function vOverview() {
     const T = teamTasks();
@@ -474,6 +488,62 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
       ${r && r.code && c.code ? `<details><summary class="small">기반 코드 대비 바뀐 부분</summary>${diffHtml(r.code, c.code)}</details>` : ''}</article>`;
   }
 
+  const nsOf = tm => { const d = byId(S.settings, 'ns') || {}; return (d[tm] || '').trim(); };
+  function fillNs(cmd, tm) {
+    const team = tm === 'B' ? 'B' : tm === 'A' ? 'A' : (S.team === 'B' ? 'B' : 'A');
+    const n = nsOf(team); return n ? String(cmd).replace(/<n>/g, n) : String(cmd);
+  }
+  function vCmds() {
+    const can = db && !S.readOnly, part = S.cmdPart || 'all', q = (S.cmdQuery || '').toLowerCase();
+    const K = S.commands.filter(k => S.team === 'all' || k.team === '공통' || k.team === S.team).filter(k => (part === 'all' || k.part === part) && (!q || [k.title, k.cmd, k.note, k.part].join(' ').toLowerCase().includes(q))).sort((a, b) => (a.order || 0) - (b.order || 0));
+    const parts = [...PARTS_CMD, ...new Set(S.commands.map(k => k.part).filter(x => x && !PARTS_CMD.includes(x)))];
+    const used = parts.filter(pt => K.some(k => k.part === pt));
+    const ns = byId(S.settings, 'ns') || {};
+    return `<section class="grid" style="gap:12px"><div class="toolbar"><h2>명령어</h2><span class="small muted">파트별로 어떤 명령을 어느 터미널에서 쓰는지 모았습니다. 복사하면 &lt;n&gt;이 아래 로봇 번호로 바뀝니다.</span>
+      <span style="margin-left:auto" class="row"><input id="cmdQ" placeholder="명령어 검색 (예: amcl, undock)" value="${esc(S.cmdQuery || '')}" aria-label="명령어 검색">${can ? '<button class="primary" data-act="newcmd">명령어 추가</button>' : ''}</span></div>
+      <div class="panel nsbox"><b>로봇 번호</b><label class="row" style="display:flex;gap:6px;align-items:center;color:var(--fg)">${badge({ team: 'A' })} /robot<input id="nsA" value="${esc(ns.A || '')}" placeholder="예: 3" ${can ? '' : 'disabled'} aria-label="로봇 A 번호"></label>
+        <label class="row" style="display:flex;gap:6px;align-items:center;color:var(--fg)">${badge({ team: 'B' })} /robot<input id="nsB" value="${esc(ns.B || '')}" placeholder="예: 4" ${can ? '' : 'disabled'} aria-label="로봇 B 번호"></label>
+        <span class="small muted">공통 명령은 위쪽 팀 선택 기준(전체일 때는 A)으로 바뀝니다. 번호를 바꾸면 모든 팀원 화면에 반영됩니다.</span></div>
+      <div class="partnav" role="group" aria-label="파트 선택"><button data-part="all" aria-pressed="${part === 'all'}">전체</button>${parts.map(pt => `<button data-part="${esc(pt)}" aria-pressed="${part === pt}">${esc(pt)}</button>`).join('')}</div>
+      ${K.length ? used.map(pt => `<div class="group-title"><h3>${esc(pt)}</h3><span class="small muted">${K.filter(k => k.part === pt).length}개</span></div><div class="cards">${K.filter(k => k.part === pt).map(cmdCard).join('')}</div>`).join('')
+        : `<div class="empty">${S.commands.length ? '조건에 맞는 명령어가 없습니다.' : '아직 등록한 명령어가 없습니다.'}</div>`}
+    </section>`;
+  }
+  function cmdCard(k) {
+    const can = db && !S.readOnly, tasks = (k.taskIds || []).map(id => byId(S.tasks, id)).filter(Boolean);
+    const filled = fillNs(k.cmd, k.team);
+    return `<article class="card cmd"><div class="cmdhead">${k.team === '공통' ? '<span class="tag">공통</span>' : badge({ team: k.team })}${k.terminal ? `<span class="tag">${esc(k.terminal)}</span>` : ''}<span class="pill ${vCls(k.verified)}">${esc(k.verified || '강의 자료')}</span>
+      ${can ? `<span style="margin-left:auto" class="row"><button class="ghost small" data-edit-cmd="${esc(k.id)}">수정</button></span>` : ''}</div>
+      <h3>${esc(k.title)}</h3>
+      <pre><code>${esc(filled)}</code><button class="copy" data-copy-cmd="${esc(k.id)}">복사</button></pre>
+      ${k.note ? `<div class="small">${esc(k.note)}</div>` : ''}
+      <div class="row small muted">${k.source ? `<span>출처: ${esc(k.source)}</span>` : ''}${tasks.map(t => `<button class="ghost small" data-open="${esc(t.id)}">${badge(t)} ${esc(t.title.length > 18 ? t.title.slice(0, 18) + '…' : t.title)}</button>`).join('')}</div></article>`;
+  }
+  function cmdModal(existing) {
+    const k = existing || { part: S.cmdPart && S.cmdPart !== 'all' ? S.cmdPart : PARTS_CMD[0], team: S.team === 'B' ? 'B' : S.team === 'A' ? 'A' : '공통', verified: '확인 필요', taskIds: [] };
+    const selTask = (k.taskIds || [])[0] || '';
+    modal(`<h2>${existing ? '명령어 수정' : '명령어 추가'}</h2><div class="formgrid">
+      <label>파트<input name="part" list="partList" value="${esc(k.part || '')}" required><datalist id="partList">${PARTS_CMD.map(x => `<option value="${esc(x)}">`).join('')}</datalist></label>
+      <label>팀<select name="team">${['공통', 'A', 'B'].map(x => `<option ${k.team === x ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
+      <label class="full">무엇을 하는 명령인가<input name="title" value="${esc(k.title || '')}" required placeholder="예: 섹터 순회 노드 실행"></label>
+      <label class="full">명령어 (여러 줄 가능, 로봇 번호 자리는 &lt;n&gt;)<textarea name="cmd" class="code" rows="5" required>${esc(k.cmd || '')}</textarea></label>
+      <label>터미널<input name="terminal" value="${esc(k.terminal || '')}" placeholder="예: TERM1, 로봇"></label>
+      <label>확인 상태<select name="verified">${VERIFY.map(x => `<option ${k.verified === x ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
+      <label>순서<input name="order" type="number" value="${esc(k.order || (Math.max(0, ...S.commands.map(x => x.order || 0)) + 1))}"></label>
+      <label>관련 작업<select name="taskId"><option value="">(없음)</option>${taskOptions(selTask)}</select></label>
+      <label class="full">메모<input name="note" value="${esc(k.note || '')}" placeholder="예: 반드시 로컬라이제이션 다음에 실행"></label>
+      <label class="full">출처<input name="source" value="${esc(k.source || '')}" placeholder="예: Day3 PDF, 팀 작성"></label>
+      ${existing ? '<div class="full"><button type="button" class="ghost" data-del-cmd>이 명령어 삭제</button></div>' : ''}</div>`, async f => {
+      const d = Object.fromEntries(new FormData(f).entries());
+      if (!d.title.trim() || !d.cmd.trim()) { toast('설명과 명령어를 적어 주세요.'); return false; }
+      const others = (k.taskIds || []).slice(1);
+      const body = { part: d.part.trim() || '기타', team: d.team, title: d.title.trim(), cmd: d.cmd.replace(/\s+$/, ''), terminal: d.terminal, verified: d.verified, order: Number(d.order) || 0, taskIds: d.taskId ? [d.taskId, ...others.filter(x => x !== d.taskId)] : others, note: d.note, source: d.source };
+      if (existing) return write(() => db.doc('commands/' + existing.id).update({ ...body, ...stamp() }), '명령어를 고쳤습니다.');
+      return write(() => db.collection('commands').add({ ...body, author: S.me || null, createdAt: new Date().toISOString(), ...stamp() }), '명령어를 추가했습니다.');
+    });
+    if (existing) { const del = document.querySelector('.modal [data-del-cmd]'); del.addEventListener('click', async () => { if (del.dataset.confirm !== '1') { del.dataset.confirm = '1'; del.textContent = '한 번 더 누르면 삭제'; return; } const ok = await write(() => db.doc('commands/' + existing.id).delete(), '명령어를 삭제했습니다.'); if (ok) del.closest('form').parentElement.remove(); }); }
+  }
+
   function vAttempts() {
     const f = S.filterAttempt || 'all';
     const A = S.attempts.filter(recTeamOk).filter(a => f === 'all' || a.result === f).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
@@ -564,6 +634,7 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
       ${editable ? `<div class="row"><button class="primary" data-save-task="${esc(t.id)}">저장</button><span class="small muted">${t.updatedAt ? `마지막 수정 ${fmtTime(t.updatedAt)} · ${esc(authorName(t.updatedBy))}` : ''}</span></div>` : ''}
       <div class="panel grid" style="gap:6px"><h3>일정</h3><div class="row">${slots || '<span class="muted small">잡힌 칸 없음</span>'}</div></div>
       <div class="panel grid" style="gap:8px"><h3>참고할 코드</h3>${refs.length ? refs.map(r => `<div class="item"><header><b>${esc(r.title)}</b>${r.path ? `<a class="path" href="${esc(r.url || REPO + r.path)}" target="_blank" rel="noopener">${esc(r.path)}</a>` : ''}</header><div class="small"><span class="muted">그대로 쓰면 </span>${esc(r.limits || '')}</div></div>`).join('') : '<span class="small muted">연결된 참고 코드가 없습니다.</span>'}</div>
+      ${S.commands.some(k => (k.taskIds || []).includes(id)) ? `<div class="panel grid" style="gap:8px"><h3>관련 명령어</h3><div class="cards">${S.commands.filter(k => (k.taskIds || []).includes(id)).sort((a, b) => (a.order || 0) - (b.order || 0)).map(cmdCard).join('')}</div></div>` : ''}
       <div class="panel grid" style="gap:8px"><div class="row"><h3>사용 코드 ${S.code.filter(c => c.taskId === id).length}</h3>${editable ? `<button style="margin-left:auto" class="primary" data-act="newcode" data-task="${esc(t.id)}">코드 등록</button>` : ''}</div>${S.code.filter(c => c.taskId === id).length ? S.code.filter(c => c.taskId === id).map(codeItem).join('') : '<span class="small muted">아직 등록한 코드가 없습니다.</span>'}</div>
       <div class="panel grid" style="gap:8px"><div class="row"><h3>시도 기록 ${atts.length}</h3>${editable ? `<button style="margin-left:auto" class="primary" data-act="newattempt" data-task="${esc(t.id)}">시도 기록</button>` : ''}</div>${atts.length ? atts.map(attemptFull).join('') : '<span class="small muted">아직 없습니다. 어떤 코드로 시도했고 결과가 어땠는지 남겨 주세요.</span>'}</div>
       <div class="panel grid" style="gap:8px"><div class="row"><h3>실행 로그 ${logs.length}</h3>${editable ? `<button style="margin-left:auto" data-act="newlog" data-task="${esc(t.id)}">로그 추가</button>` : ''}</div>${logs.length ? logs.map(logItem).join('') : '<span class="small muted">아직 없습니다.</span>'}</div>
@@ -731,6 +802,12 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
 
   // ---------- events ----------
   document.addEventListener('click', async e => {
+    const cp = e.target.closest('[data-copy-cmd]');
+    if (cp) { const k = byId(S.commands, cp.dataset.copyCmd); if (!k) return; const txt = fillNs(k.cmd, k.team); try { await navigator.clipboard.writeText(txt); cp.textContent = '복사됨'; setTimeout(() => { cp.textContent = '복사'; }, 1500); } catch (err) { const r = document.createRange(); r.selectNodeContents(cp.parentElement.querySelector('code')); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); toast('선택해 두었습니다. Ctrl+C로 복사하세요.'); } return; }
+    const pb = e.target.closest('[data-part]');
+    if (pb) { S.cmdPart = pb.dataset.part; render(true); return; }
+    const ec = e.target.closest('[data-edit-cmd]');
+    if (ec) { cmdModal(byId(S.commands, ec.dataset.editCmd)); return; }
     const go = e.target.closest('[data-goto-code]');
     if (go) {
       const cid = go.dataset.gotoCode; const c = byId(S.code, cid); if (!c) return;
@@ -764,6 +841,7 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
     const act = el.dataset.act;
     if (act === 'newattempt') attemptModal(el.dataset.task || (view() === 'task' ? location.hash.slice(6) : null));
     if (act === 'newlog') logModal(el.dataset.task || null);
+    if (act === 'newcmd') cmdModal(null);
     if (act === 'newcode') codeModal(el.dataset.task || (view() === 'task' ? location.hash.slice(6) : null));
     if (act === 'newtask') taskModal();
     if (act === 'newref') refModal();
@@ -781,6 +859,7 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
     const el = e.target;
     if (el.dataset.status) { await write(() => db.doc('tasks/' + el.dataset.status).update({ status: el.value, ...stamp() })); return; }
     if (el.dataset.owner) { await write(() => db.doc('tasks/' + el.dataset.owner).update({ owner: el.value, ...stamp() })); return; }
+    if (el.id === 'nsA' || el.id === 'nsB') { const v = el.value.replace(/^\/?robot/i, '').trim(); const cur = byId(S.settings, 'ns'); const patch = { [el.id === 'nsA' ? 'A' : 'B']: v, ...stamp() }; await write(() => cur ? db.doc('settings/ns').update(patch) : db.doc('settings/ns').set({ A: '', B: '', ...patch }), '로봇 번호를 저장했습니다.'); return; }
     if (el.dataset.link) { const [id, f] = el.dataset.link.split('|'); await write(() => db.doc('interfaces/' + id).update({ [f]: el.value, ...stamp() })); return; }
   });
   document.addEventListener('change', e => {
@@ -788,12 +867,12 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
     if (e.target.id === 'fLog') { S.filterLog = e.target.value; render(true); }
     if (e.target.id === 'fCode') { S.codeTask = e.target.value; render(true); }
   });
-  let qTimer; document.addEventListener('input', e => { if (e.target.id === 'codeQ') { clearTimeout(qTimer); const v = e.target.value; qTimer = setTimeout(() => { S.codeQuery = v; render(true); const i = $('#codeQ'); if (i) { i.focus(); i.setSelectionRange(v.length, v.length); } }, 250); return; } if (e.target.id === 'logQ') { clearTimeout(qTimer); const v = e.target.value; qTimer = setTimeout(() => { S.logQuery = v; render(true); const i = $('#logQ'); if (i) { i.focus(); i.setSelectionRange(v.length, v.length); } }, 250); } });
+  let qTimer; document.addEventListener('input', e => { if (e.target.id === 'cmdQ') { clearTimeout(qTimer); const v = e.target.value; qTimer = setTimeout(() => { S.cmdQuery = v; render(true); const i = $('#cmdQ'); if (i) { i.focus(); i.setSelectionRange(v.length, v.length); } }, 250); return; } if (e.target.id === 'codeQ') { clearTimeout(qTimer); const v = e.target.value; qTimer = setTimeout(() => { S.codeQuery = v; render(true); const i = $('#codeQ'); if (i) { i.focus(); i.setSelectionRange(v.length, v.length); } }, 250); return; } if (e.target.id === 'logQ') { clearTimeout(qTimer); const v = e.target.value; qTimer = setTimeout(() => { S.logQuery = v; render(true); const i = $('#logQ'); if (i) { i.focus(); i.setSelectionRange(v.length, v.length); } }, 250); } });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') { const m = document.querySelector('.modal'); if (m) m.parentElement.remove(); else if (view() === 'task') location.hash = lastView; } });
   window.addEventListener('hashchange', () => { const v = view(); if (v !== 'task') lastView = v; render(true); sharePresence(); });
 
   // ---------- who is here (live presence) ----------
-  const VIEW_NAMES = { overview: '현황', schedule: '일정', links: 'A·B 연동', refs: '참고 코드', code: '사용 코드', attempts: '시도 기록', logs: '실행 로그', deck: '발표 자료' };
+  const VIEW_NAMES = { overview: '현황', schedule: '일정', links: 'A·B 연동', refs: '참고 코드', code: '사용 코드', cmds: '명령어', attempts: '시도 기록', logs: '실행 로그', deck: '발표 자료' };
   function sharePresence() {
     if (!room) return;
     const v = view(), t = v === 'task' ? byId(S.tasks, location.hash.slice(6)) : null;

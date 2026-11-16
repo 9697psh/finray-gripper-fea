@@ -1,0 +1,1 @@
+{"order": 10, "part": "로컬라이제이션·Nav2", "team": "공통", "title": "④ Nav2 실행", "cmd": "ros2 launch turtlebot4_navigation nav2.launch.py namespace:=/robot<n>", "terminal": "TERM3", "source": "Day3 PDF", "verified": "강의 자료", "taskIds": ["t04", "t05", "b02"], "note": "장애물 회피는 Nav2 코스트맵 설정으로 조정"}

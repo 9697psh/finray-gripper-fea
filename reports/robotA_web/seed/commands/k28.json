@@ -1,0 +1,1 @@
+{"order": 28, "part": "복구", "team": "공통", "title": "(로봇에서) 서비스 재시작", "cmd": "turtlebot4-service-restart\nturtlebot4-daemon-restart", "terminal": "로봇", "source": "Day4 PDF", "verified": "강의 자료", "taskIds": [], "note": "그래도 안 되면 sudo reboot"}

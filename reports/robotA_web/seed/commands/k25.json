@@ -1,0 +1,1 @@
+{"order": 25, "part": "도킹·배터리", "team": "A", "title": "배터리 상태 확인", "cmd": "ros2 topic echo /robot<n>/battery_state --once", "terminal": "", "source": "patrol_loop 코드", "verified": "확인 필요", "taskIds": ["t15", "t16"], "note": "patrol_loop가 구독하는 BatteryState 토픽"}

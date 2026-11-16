@@ -1,0 +1,1 @@
+{"order": 21, "part": "연동 테스트", "team": "A", "title": "비전 결과 대신 보내기 (더미)", "cmd": "ros2 topic pub --once <탐지 결과 토픽> std_msgs/msg/String \"{data: '{\\\"sector\\\": 1, \\\"ripe\\\": 3, \\\"unripe\\\": 2, \\\"suspect\\\": 0}'}\"", "terminal": "", "source": "팀 작성", "verified": "확인 필요", "taskIds": ["t08", "t10"], "note": "토픽 이름은 A·B 연동 탭의 \"탐지 결과\" 합의 후 채우기"}

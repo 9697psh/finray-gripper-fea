@@ -1,0 +1,1 @@
+{"order": 1, "part": "준비·환경", "team": "공통", "title": "터미널 환경 불러오기", "cmd": "source ~/.bashrc", "terminal": "", "source": "Day3 PDF", "verified": "강의 자료", "taskIds": [], "note": "discovery용 setup.bash는 source하지 않기 (#source /etc/turtlebot4_discovery/setup.bash)"}

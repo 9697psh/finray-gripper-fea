@@ -1,0 +1,1 @@
+{"order": 14, "part": "주행 예제", "team": "B", "title": "이름 붙은 목적지로 이동 (집하장 이동 참고)", "cmd": "ros2 run day3 mail_delivery --ros-args -r __ns:=/robot<n>", "terminal": "TERM4", "source": "Day3 PDF", "verified": "강의 자료", "taskIds": ["b03"], "note": ""}

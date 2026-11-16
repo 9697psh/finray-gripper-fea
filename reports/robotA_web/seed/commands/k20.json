@@ -1,0 +1,1 @@
+{"order": 20, "part": "토픽 확인·디버깅", "team": "공통", "title": "노드·토픽 연결 그래프", "cmd": "ros2 run rqt_graph rqt_graph", "terminal": "", "source": "Day2 PDF", "verified": "강의 자료", "taskIds": ["t10", "t14"], "note": "연동 테스트 전에 A·B·비전 노드가 같은 토픽을 쓰는지 확인"}

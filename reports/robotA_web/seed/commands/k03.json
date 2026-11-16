@@ -1,0 +1,1 @@
+{"order": 3, "part": "SLAM·맵", "team": "A", "title": "SLAM으로 맵 만들기 (시뮬레이션)", "cmd": "ros2 launch turtlebot4_gz_bringup turtlebot4_gz.launch.py nav2:=true slam:=true rviz:=true", "terminal": "TERM1", "source": "Day3 PDF", "verified": "강의 자료", "taskIds": ["t03"], "note": "Gazebo에서 undock 후 키보드로 움직여 맵 완성"}

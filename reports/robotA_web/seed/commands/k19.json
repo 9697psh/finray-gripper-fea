@@ -1,0 +1,1 @@
+{"order": 19, "part": "토픽 확인·디버깅", "team": "공통", "title": "토픽 목록 · 정보 · 내용", "cmd": "ros2 topic list\nros2 topic info <토픽>\nros2 topic echo <토픽> --once", "terminal": "", "source": "Day2·Day3 PDF", "verified": "강의 자료", "taskIds": [], "note": ""}

@@ -1,0 +1,1 @@
+{"order": 9, "part": "로컬라이제이션·Nav2", "team": "공통", "title": "③ 도킹 해제", "cmd": "ros2 action send_goal /robot<n>/undock irobot_create_msgs/action/Undock \"{}\"", "terminal": "TERM3", "source": "Day3 PDF", "verified": "강의 자료", "taskIds": ["t04", "b02"], "note": ""}

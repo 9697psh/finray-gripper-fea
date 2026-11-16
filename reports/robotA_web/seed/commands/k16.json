@@ -1,0 +1,1 @@
+{"order": 16, "part": "카메라·사진 토픽", "team": "A", "title": "카메라 토픽 켜기 (undock 필요)", "cmd": "ros2 action send_goal /robot<n>/undock irobot_create_msgs/action/Undock \"{}\"\nros2 topic list", "terminal": "", "source": "Day2 PDF", "verified": "강의 자료", "taskIds": ["t07"], "note": "undock해야 이미지 토픽이 발행됨. 처음에는 일부 토픽이 안 보일 수 있음"}

@@ -1,0 +1,1 @@
+{"order": 13, "part": "주행 예제", "team": "A", "title": "웨이포인트 순회", "cmd": "ros2 run day3 follow_waypoints --ros-args -r __ns:=/robot<n>", "terminal": "TERM4", "source": "Day3 PDF", "verified": "강의 자료", "taskIds": ["t04", "t06"], "note": ""}

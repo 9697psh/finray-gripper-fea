@@ -1,0 +1,1 @@
+{"order": 5, "part": "SLAM·맵", "team": "A", "title": "실제 로봇 SLAM", "cmd": "ros2 launch turtlebot4_navigation slam.launch.py namespace:=/robot<n>", "terminal": "TERM1", "source": "TurtleBot4 매뉴얼", "verified": "확인 필요", "taskIds": ["t03"], "note": "강의 자료에는 시뮬레이션 SLAM만 있음. 실행해 보고 동작하면 \"동작 확인\"으로 바꿔 주세요"}

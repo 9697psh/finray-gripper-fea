@@ -1,0 +1,1 @@
+{"order": 30, "part": "빌드·실행", "team": "공통", "title": "TF를 쓰는 노드 실행 (리매핑)", "cmd": "ros2 run day4 depth_to_goal --ros-args -r __ns:=/robot<n> -r /tf:=/robot<n>/tf -r /tf_static:=/robot<n>/tf_static", "terminal": "", "source": "Day3 PDF", "verified": "강의 자료", "taskIds": [], "note": "tf를 쓰는 노드는 /tf, /tf_static도 네임스페이스로 리매핑"}

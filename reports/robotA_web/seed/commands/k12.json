@@ -1,0 +1,1 @@
+{"order": 12, "part": "주행 예제", "team": "공통", "title": "좌표 하나로 이동", "cmd": "ros2 run day3 nav_to_poses --ros-args -r __ns:=/robot<n>", "terminal": "TERM4", "source": "Day3 PDF", "verified": "강의 자료", "taskIds": ["t04", "t06", "b02"], "note": ""}

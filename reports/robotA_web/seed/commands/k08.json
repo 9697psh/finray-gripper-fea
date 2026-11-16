@@ -1,0 +1,1 @@
+{"order": 8, "part": "로컬라이제이션·Nav2", "team": "공통", "title": "② RViz 띄우고 초기 위치 지정", "cmd": "ros2 launch turtlebot4_viz view_navigation.launch.py namespace:=/robot<n>", "terminal": "TERM2", "source": "Day3 PDF", "verified": "강의 자료", "taskIds": ["t04", "b02"], "note": "RViz에서 2D Pose Estimate로 초기 위치를 찍은 뒤 undock"}

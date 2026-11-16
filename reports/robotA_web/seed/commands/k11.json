@@ -1,0 +1,1 @@
+{"order": 11, "part": "주행 예제", "team": "A", "title": "RViz로 찍어 경로 만들기 (섹터 좌표 수집)", "cmd": "ros2 run day3 create_path --ros-args -r __ns:=/robot<n>", "terminal": "TERM4", "source": "Day3 PDF", "verified": "강의 자료", "taskIds": ["t01"], "note": ""}

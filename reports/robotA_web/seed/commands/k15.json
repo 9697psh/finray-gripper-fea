@@ -1,0 +1,1 @@
+{"order": 15, "part": "주행 예제", "team": "A", "title": "배터리 감시 순찰", "cmd": "ros2 run day3 patrol_loop --ros-args -r __ns:=/robot<n>", "terminal": "TERM4", "source": "Day3 PDF", "verified": "강의 자료", "taskIds": ["t15", "t16"], "note": "충전 뒤 처음 지점부터 다시 도는 동작은 우리 요구와 다름 (참고 코드 탭)"}

@@ -1,0 +1,1 @@
+{"order": 18, "part": "카메라·사진 토픽", "team": "공통", "title": "이미지 화면으로 보기", "cmd": "ros2 run rqt_image_view rqt_image_view", "terminal": "", "source": "rqt 도구", "verified": "확인 필요", "taskIds": ["t07", "t10"], "note": "강의 자료는 \"rqt로 이미지 토픽 비교\"까지만 안내"}

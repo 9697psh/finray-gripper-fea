@@ -1,0 +1,1 @@
+{"order": 4, "part": "SLAM·맵", "team": "A", "title": "자동 탐색 SLAM (시뮬레이션)", "cmd": "ros2 launch explore_lite explore.launch.py", "terminal": "TERM2", "source": "Day3 PDF", "verified": "강의 자료", "taskIds": ["t03"], "note": "위 SLAM 실행 상태에서 함께 실행"}

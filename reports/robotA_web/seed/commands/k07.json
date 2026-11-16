@@ -1,0 +1,1 @@
+{"order": 7, "part": "로컬라이제이션·Nav2", "team": "공통", "title": "① 로컬라이제이션 실행", "cmd": "ros2 launch turtlebot4_navigation localization.launch.py namespace:=/robot<n> map:=$HOME/<맵 폴더>/<맵 이름>.yaml", "terminal": "TERM1", "source": "Day3 PDF", "verified": "강의 자료", "taskIds": ["t04", "b02"], "note": "실행 순서: 로컬라이제이션 → RViz 초기 위치 → undock → Nav2"}

@@ -1,0 +1,1 @@
+{"order": 2, "part": "준비·환경", "team": "공통", "title": "(로봇에서) TurtleBot4 환경 불러오기", "cmd": "turtlebot4-source", "terminal": "로봇", "source": "Day4 PDF", "verified": "강의 자료", "taskIds": [], "note": ".bashrc를 다시 읽는 것과 비슷"}
