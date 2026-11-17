@@ -202,6 +202,11 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
 #noteBody { min-height: 340px; font-size: 14px; line-height: 1.65; }
 #noteTitle { font-size: 16px; font-weight: 700; }
 .savestate { font-size: 12px; color: var(--muted); }
+.ver { font-family: var(--mono); font-size: 11.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: var(--fg); color: var(--bg); }
+.verlist { display: grid; gap: 6px; }
+.verrow { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; display: grid; gap: 6px; background: var(--panel); }
+.verrow.cur { border-color: var(--accent); }
+.verrow header { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 12.5px; }
 .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .toolbar input, .toolbar select { width: auto; max-width: 100%; }
 .toolbar > span.row { min-width: 0; max-width: 100%; flex: 1 1 260px; justify-content: flex-end; }
@@ -261,7 +266,7 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
   const nextMilestone = () => MILESTONES.find(m => new Date(m.at) > Date.now());
 
   // ---------- state ----------
-  const S = { tasks: [], refs: [], attempts: [], logs: [], media: [], interfaces: [], code: [], commands: [], settings: [], todos: [], notes: [], loaded: {}, team: (() => { try { return localStorage.getItem('team') || 'all'; } catch (e) { return 'all'; } })(), me: null, canWrite: null, readOnly: false, names: {} };
+  const S = { tasks: [], refs: [], attempts: [], logs: [], media: [], interfaces: [], code: [], commands: [], settings: [], todos: [], notes: [], codeVersions: [], loaded: {}, team: (() => { try { return localStorage.getItem('team') || 'all'; } catch (e) { return 'all'; } })(), me: null, canWrite: null, readOnly: false, names: {} };
   let db = null, user = null, assets = null, downloads = null, room = null;
 
   // ---------- helpers ----------
@@ -343,7 +348,7 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
     if (v === 'task') openTask(location.hash.slice(6)); else closeSheet();
   }
   let lastView = 'overview';
-  const COLLS = ['tasks', 'refs', 'attempts', 'logs', 'media', 'interfaces', 'code', 'commands', 'settings', 'todos', 'notes'];
+  const COLLS = ['tasks', 'refs', 'attempts', 'logs', 'media', 'interfaces', 'code', 'commands', 'settings', 'todos', 'notes', 'codeVersions'];
 
   function vOverview() {
     const T = teamTasks();
@@ -541,16 +546,36 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
         <td>${lc ? `<button class="ghost small" data-goto-code="${esc(lc.id)}">${esc(lc.name)} · ${esc(lc.status || '')}</button>` : '<span class="tag">코드 미등록</span>'}</td><td class="small">${esc(n.note || '')}</td></tr>`; }).join('')}
       </tbody></table></div></details>`;
   }
+  const versOf = cid => S.codeVersions.filter(v => v.codeId === cid).sort((a, b) => (a.v || 0) - (b.v || 0) || (a.createdAt || '').localeCompare(b.createdAt || ''));
+  function versionsHtml(c) {
+    const vs = versOf(c.id); if (!vs.length) return '';
+    const can = db && !S.readOnly, cur = c.ver || vs[vs.length - 1].v;
+    return `<details><summary class="small">버전 기록 ${vs.length}개 (현재 v${esc(cur)})</summary><div class="verlist">${[...vs].reverse().map(v => `<div class="verrow ${v.v === cur ? 'cur' : ''}"><header><span class="ver">v${esc(v.v)}</span>${v.v === cur ? '<span class="tag">현재</span>' : ''}<span class="pill ${codeCls(v.status)}">${esc(v.status || '')}</span><span class="muted">${esc(authorName(v.author))}${v.author ? ' · ' : ''}${fmtTime(v.createdAt)}</span>
+        ${can && v.v !== cur ? `<span style="margin-left:auto"><button class="ghost small" data-ver-restore="${esc(v.id)}">이 버전으로 되돌리기</button></span>` : ''}</header>
+        ${v.note ? `<div class="small">${esc(v.note)}</div>` : ''}
+        <details data-ver-detail="${esc(v.id)}"><summary class="small">코드 · 이전 버전과 비교</summary><div class="small muted">불러오는 중…</div></details></div>`).join('')}</div></details>`;
+  }
+  function verDetailHtml(vid) {
+    const v = byId(S.codeVersions, vid); if (!v) return '';
+    const vs = versOf(v.codeId), i = vs.findIndex(x => x.id === vid), prev = i > 0 ? vs[i - 1] : null;
+    return `${prev ? `<div class="small muted">v${esc(prev.v)} → v${esc(v.v)} 바뀐 부분</div>${diffHtml(prev.code, v.code)}` : '<div class="small muted">첫 버전입니다.</div>'}${v.runCmd ? `<div class="small"><span class="muted">실행 명령 </span><code>${esc(v.runCmd)}</code></div>` : ''}<details><summary class="small">v${esc(v.v)} 전체 코드</summary><pre>${esc(v.code || '')}</pre></details>`;
+  }
+  async function saveVersion(codeId, data, note) {
+    const vs = versOf(codeId), v = (vs.length ? Math.max(...vs.map(x => x.v || 0)) : 0) + 1;
+    await db.collection('codeVersions').add({ codeId, v, code: data.code || '', runCmd: data.runCmd || '', status: data.status || '', note: note || '', author: S.me || null, createdAt: new Date().toISOString() });
+    return v;
+  }
   function codeItem(c) {
     const r = byId(S.refs, c.refId), can = db && !S.readOnly, lines = String(c.code || '').split('\n').length;
     const usedBy = S.code.filter(x => (x.nodes || []).some(n => n.codeId === c.id));
-    return `<article class="item" id="code-${esc(c.id)}"><div class="codehead"><span class="pill ${codeCls(c.status)}">${esc(c.status || '작성 중')}</span><b>${esc(c.name || '(이름 없음)')}</b>${c.lang ? `<span class="tag">${esc(c.lang)}</span>` : ''}
+    return `<article class="item" id="code-${esc(c.id)}"><div class="codehead">${c.ver ? `<span class="ver">v${esc(c.ver)}</span>` : ''}<span class="pill ${codeCls(c.status)}">${esc(c.status || '작성 중')}</span><b>${esc(c.name || '(이름 없음)')}</b>${c.lang ? `<span class="tag">${esc(c.lang)}</span>` : ''}
       <span class="small muted">${esc(authorName(c.updatedBy || c.author))} · ${fmtTime(c.updatedAt || c.createdAt)}</span>
       ${can ? `<span style="margin-left:auto" class="row"><button class="ghost" data-edit-code="${esc(c.id)}">수정</button><button class="ghost" data-del-code="${esc(c.id)}">삭제</button></span>` : ''}</div>
       <dl class="kv">${c.path ? `<dt>위치</dt><dd class="path">${esc(c.path)}${c.commit ? ' @ ' + esc(c.commit) : ''}</dd>` : ''}${c.description ? `<dt>하는 일</dt><dd>${esc(c.description)}</dd>` : ''}${c.runCmd || c.cmdId ? `<dt>실행</dt><dd>${c.runCmd ? `<pre style="margin:0;padding:6px 8px;white-space:pre-wrap;word-break:break-all"><code>${esc(c.runCmd)}</code></pre>` : ''}${byId(S.commands, c.cmdId) ? `<button class="ghost small" data-goto-cmd="${esc(c.cmdId)}">명령어 탭: ${esc(byId(S.commands, c.cmdId).title)}</button>` : ''}</dd>` : ''}${r ? `<dt>기반 코드</dt><dd class="path">${esc(r.path || r.title)}</dd>` : ''}${usedBy.length ? `<dt>실행하는 런치</dt><dd>${usedBy.map(x => `<button class="ghost small" data-goto-code="${esc(x.id)}">${esc(x.name)}</button>`).join(' ')}</dd>` : ''}</dl>
       ${nodesTable(c)}
       ${c.code ? `<details><summary class="small">코드 보기 (${lines}줄)</summary><pre>${esc(c.code)}</pre></details>` : ''}
-      ${r && r.code && c.code ? `<details><summary class="small">기반 코드 대비 바뀐 부분</summary>${diffHtml(r.code, c.code)}</details>` : ''}</article>`;
+      ${r && r.code && c.code ? `<details><summary class="small">기반 코드 대비 바뀐 부분</summary>${diffHtml(r.code, c.code)}</details>` : ''}
+      ${versionsHtml(c)}</article>`;
   }
 
   const nsOf = tm => { const d = byId(S.settings, 'ns') || {}; return (d[tm] || '').trim(); };
@@ -767,6 +792,8 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
         <label class="full"><span class="row" style="justify-content:space-between">실행 명령<select id="cmdPick" style="width:auto;max-width:100%" aria-label="명령어 탭에서 고르기"></select></span>
           <textarea name="runCmd" class="code" rows="2" placeholder="직접 쓰거나 오른쪽 위에서 명령어 탭의 명령을 고르세요">${esc(c.runCmd || '')}</textarea>
           <input type="hidden" name="cmdId" value="${esc(c.cmdId || '')}"><span class="small" id="cmdLinked"></span></label>
+        <label class="full">${existing ? `이번 수정 내용 (새 버전 메모)` : '버전 메모 (v1)'}<input name="verNote" placeholder="${existing ? '예: 도착 실패 시 3회 재시도 추가' : '예: 처음 등록'}"></label>
+        ${existing ? `<label class="full row" style="display:flex;gap:8px;align-items:center;color:var(--fg)"><input type="checkbox" name="newVer" style="width:auto" checked> 코드나 실행 명령이 바뀌면 새 버전(v${(existing.ver || versOf(existing.id).length || 1) + 1})으로 기록</label>` : ''}
         <label class="full">하는 일<textarea name="description" placeholder="예: 섹터 목록을 순서대로 돌며 도착하면 사진 토픽을 발행">${esc(c.description || '')}</textarea></label>
         <div class="full grid" id="nodeBox" style="gap:6px" ${c.lang === 'Launch' ? '' : 'hidden'}>
           <div class="row" style="justify-content:space-between"><span class="small" style="font-weight:600">하위 노드 · 포함 런치</span><span class="row"><button type="button" class="ghost small" data-parse>런치 코드에서 자동 추출</button><button type="button" class="ghost small" data-addnode>직접 추가</button></span></div>
@@ -780,8 +807,24 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
       if (d.code.length > 80000) { toast('코드가 너무 깁니다(8만 자 이하). 파일을 나눠 등록해 주세요.'); return false; }
       const nodes = d.lang === 'Launch' ? [...f.querySelectorAll('#nodeRows .noderow')].map(r => ({ kind: r.querySelector('[data-k=kind]').value, pkg: r.querySelector('[data-k=pkg]').value.trim(), exec: r.querySelector('[data-k=exec]').value.trim(), name: r.querySelector('[data-k=name]').value.trim(), ns: r.querySelector('[data-k=ns]').value.trim(), codeId: r.querySelector('[data-k=codeId]').value || null, note: r.dataset.note || '' })).filter(n => n.pkg || n.exec || n.name) : (existing && existing.nodes) || [];
       const body = { taskId: d.taskId, name: d.name.trim(), status: d.status, path: d.path, commit: d.commit, lang: d.lang, refId: d.refId || null, runCmd: d.runCmd.replace(/\s+$/, ''), cmdId: d.cmdId || null, description: d.description, code: d.code, nodes };
-      if (existing) return write(() => db.doc('code/' + existing.id).update({ ...body, ...stamp() }), '사용 코드를 고쳤습니다.');
-      return write(() => db.collection('code').add({ ...body, author: S.me || null, createdAt: new Date().toISOString(), ...stamp() }), '코드를 등록했습니다.');
+      const verNote = (d.verNote || '').trim();
+      if (existing) {
+        const changed = body.code !== (existing.code || '') || body.runCmd !== (existing.runCmd || '');
+        const makeVer = f.newVer && f.newVer.checked && (changed || verNote);
+        return write(async () => {
+          let ver = existing.ver || null;
+          if (makeVer) {
+            if (!versOf(existing.id).length) { await db.collection('codeVersions').add({ codeId: existing.id, v: 1, code: existing.code || '', runCmd: existing.runCmd || '', status: existing.status || '', note: '버전 기록 이전 내용 (자동 보관)', author: existing.author || null, createdAt: existing.updatedAt || existing.createdAt || new Date().toISOString() }); S.codeVersions = [...S.codeVersions, { id: '_tmp', codeId: existing.id, v: 1 }]; }
+            ver = await saveVersion(existing.id, body, verNote);
+          }
+          await db.doc('code/' + existing.id).update({ ...body, ...(ver ? { ver } : {}), ...stamp() });
+        }, makeVer ? '새 버전으로 기록했습니다.' : '사용 코드를 고쳤습니다.');
+      }
+      const ref = db.collection('code').doc();
+      return write(async () => {
+        await ref.set({ ...body, ver: 1, author: S.me || null, createdAt: new Date().toISOString(), ...stamp() });
+        await db.collection('codeVersions').add({ codeId: ref.id, v: 1, code: body.code, runCmd: body.runCmd, status: body.status, note: verNote || '처음 등록', author: S.me || null, createdAt: new Date().toISOString() });
+      }, '코드를 등록했습니다 (v1).');
     });
     $('#codeFile', form).addEventListener('change', e => { const file = e.target.files[0]; if (!file) return; const rd = new FileReader(); rd.onload = () => { form.code.value = String(rd.result); if (!form.name.value) form.name.value = file.name; if (/launch/i.test(file.name)) { form.lang.value = 'Launch'; $('#nodeBox', form).hidden = false; } }; rd.readAsText(file); });
     const selfId = existing ? existing.id : null;
@@ -890,6 +933,13 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
 
   // ---------- events ----------
   document.addEventListener('click', async e => {
+    const vr = e.target.closest('[data-ver-restore]');
+    if (vr) {
+      if (vr.dataset.confirm !== '1') { vr.dataset.confirm = '1'; vr.textContent = '한 번 더 누르면 되돌림'; setTimeout(() => { vr.dataset.confirm = ''; vr.textContent = '이 버전으로 되돌리기'; }, 3000); return; }
+      const v = byId(S.codeVersions, vr.dataset.verRestore); const c = v && byId(S.code, v.codeId); if (!c) return;
+      await write(async () => { const nv = await saveVersion(c.id, v, `v${v.v}로 되돌림`); await db.doc('code/' + c.id).update({ code: v.code || '', runCmd: v.runCmd || '', status: v.status || c.status, ver: nv, ...stamp() }); }, `v${v.v} 내용으로 되돌렸습니다 (새 버전으로 기록).`);
+      return;
+    }
     const nb = e.target.closest('[data-note]');
     if (nb) { await flushNote(); S.noteId = nb.dataset.note; render(true); return; }
     const td = e.target.closest('[data-todo-del]');
@@ -1000,6 +1050,7 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
   });
   document.addEventListener('focusout', e => { if (e.target.id === 'noteBody' || e.target.id === 'noteTitle') flushNote(); });
   window.addEventListener('pagehide', () => { flushNote(); });
+  document.addEventListener('toggle', e => { const d = e.target; if (d && d.dataset && d.dataset.verDetail && d.open && !d.dataset.filled) { d.dataset.filled = '1'; d.querySelector('div.small.muted') && d.querySelector('div.small.muted').remove(); d.insertAdjacentHTML('beforeend', verDetailHtml(d.dataset.verDetail)); } }, true);
   window.addEventListener('hashchange', () => { const v = view(); if (v !== 'task') lastView = v; render(true); sharePresence(); });
 
   // ---------- who is here (live presence) ----------
