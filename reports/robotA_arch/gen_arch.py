@@ -104,11 +104,11 @@ for i, (col, dsh, txt) in enumerate([(RED, False, '외부 → PC (입력)'), (BL
 BOT = box(40, 160, 260, 300, t('Bot', 'TurtleBot4 (/robot&lt;n&gt;)', '', 'Create3 베이스', '/odom · /tf · 배터리',
                                 '/dock · /undock (action)', '', 'RPLIDAR → /scan', '',
                                 'OAK-D → /oakd/rgb/preview/image_raw', sub=11), EXT)
-DET = box(40, 930, 260, 110, t('Detect', '비전 인식 팀 (YOLO)', sub=11), EXT)
-SM = box(40, 1060, 260, 110, t('SM', 'Main PC 서버 · DB', sub=11), EXT)
+DET = box(40, 1060, 220, 100, t('Detect', '비전 인식 팀 (YOLO)', 'image 구독 → 익음·병충해 탐지', sub=11), EXT)
+SM = box(40, 880, 220, 120, t('SM', 'Main PC 서버 · DB', '작업 지시 · 결과 저장', '재방문 목록(remission_list)', sub=11), EXT)
 
 # ---------- PC ----------
-box(360, 80, 1320, 1130, 'PC  (원격 PC · ROS 2 Jazzy)',
+box(360, 80, 1320, 1365, 'PC  (원격 PC · ROS 2 Jazzy)',
     S(rounded=1, whiteSpace='wrap', html=1, fillColor='none', strokeColor=INK, strokeWidth=2.5, fontSize=17,
       fontStyle=1, fontColor=INK, align='left', verticalAlign='top', spacingLeft=14, spacingTop=6, arcSize=2))
 
@@ -153,35 +153,81 @@ edge(WPF, BT, label='', color=INK, ex=0, ey=0.5, nx=1, ny=round((520 - 412) / 26
 # separator (dashed) like the sketch
 edge(None, None, color='#777777', dashed=True, end='none', width=1.5, spt=(400, 780), tpt=(1640, 780))
 
-# Our logic
-box(400, 800, 1240, 390, '우리의 로직  <span style="font-weight:normal;font-size:12px">(Robot A 패키지 · 노드 이름은 제안, 팀에서 확정)</span>',
-    group(OUR_C, OUR_F))
-OC = node(OUR_C)
-DOCKC = box(425, 840, 190, 60, t('dock_client', 'Dock · Undock action client'), OC)
-VIS = box(425, 920, 190, 100, t('vision_bridge', 'OAK-D 이미지 받아', '사진 토픽 발행', '탐지 결과 구독'), OC)
-SRV = box(425, 1070, 190, 90, t('server_bridge', '작업 시작 · 재방문 좌표 수신', 'a_mission · a_remission 발행'), OC)
-MIS = box(720, 840, 380, 330, t('robot_a_mission  (상태 머신)', '',
-                                 '① 작업 시작 수신 → 도킹 중이면 언도킹',
-                                 '② 섹터 i 좌표로 이동 (nav2, i = 1→4)',
-                                 '③ 도착 → 정지 → OAK-D 촬영',
-                                 '④ 사진 전송 → 탐지 결과 받기 → 서버 보고',
-                                 '⑤ 마지막 섹터면 재방문 목록 받기',
-                                 '⑥ 재방문 좌표 순회 (③~④ 반복)',
-                                 '⑦ 끝나면 도킹 스테이션 복귀', sub=12),
-          node(OUR_C, '#FFFFFF', align='left', fs=14))
-NAVC = box(1250, 840, 200, 90, t('nav_goal_client', 'NavigateToPose', 'action client', 'goal = 섹터 좌표 i'), OC)
+# Our logic — Robot A mission flow (user's flowchart), described in plain steps
+LOGIC = box(400, 800, 1240, 625, '우리의 로직  <span style="font-weight:normal;font-size:12px">Robot A 미션 흐름 (2번 플로우차트)</span>',
+            group(OUR_C, OUR_F))
+def tag(txt, col):
+    return f'<br><span style="font-size:10px;color:{col}">{txt}</span>'
+def step(x, y, w, h, title, *tags, dashed=False):
+    st = node('#E08A00' if dashed else OUR_C, '#FFF8EC' if dashed else '#FFFFFF', dashed=dashed, fs=12)
+    return box(x, y, w, h, f'<b>{title}</b>' + ''.join(tag(tx, c) for tx, c in tags), st)
+def dec(x, y, w, h, title):
+    return box(x, y, w, h, f'<b>{title}</b>', 'rhombus;' + S(whiteSpace='wrap', html=1, fillColor='#FFFFFF', strokeColor=OUR_C,
+                                                            strokeWidth=1.5, fontSize=11, fontColor='#1A1A1A'))
+def lab(x, y, w, txt, col=OUR_C):
+    box(x, y, w, 18, f'<b>{txt}</b>', TEXT.replace('fontSize=12', 'fontSize=12') + f'fontColor={col};')
+def go(a, b, label='', **kw):
+    kw.setdefault('width', 1.5)
+    return edge(a, b, label=label, color=kw.pop('color', INK), **kw)
 
-edge(MIS, NAVC, label='섹터 좌표 i', color=INK, ex=1, ey=round((885 - 840) / 330, 4), nx=0, ny=0.5, width=1.5)
-edge(MIS, DOCKC, label='언도킹·도킹', color=INK, ex=0, ey=round((870 - 840) / 330, 4), nx=1, ny=0.5, width=1.5)
-edge(MIS, VIS, label='촬영 요청<br>탐지 결과', color=INK, both=True, ex=0, ey=round((970 - 840) / 330, 4), nx=1, ny=0.5, width=1.5)
-edge(SRV, MIS, label='시작·재방문<br>결과 보고', color=INK, both=True, ex=1, ey=0.5, nx=0, ny=round((1115 - 840) / 330, 4), width=1.5)
+NAVT = ('→ Nav2: goal (NavigateToPose)', NAV_C)
+# row 0: start
+S0 = step(440, 850, 170, 56, '작업 시작 수신', ('← SM: 작업 시작', RED))
+D0 = dec(650, 846, 120, 64, '도킹 중?')
+U0 = step(810, 850, 190, 56, '언도킹', ('→ Bot: /undock', BLUE), ('흐름도에 추가 필요', '#B86E00'), dashed=True)
+N0 = step(1060, 850, 200, 56, '도킹 (no일 때)', ('→ Bot: /dock', BLUE), ('의도 확인 필요', '#B86E00'), dashed=True)
+go(S0, D0)
+go(D0, U0, 'yes', lx=-0.4)
+go(D0, N0, 'no', ex=0.5, ey=0, nx=0.5, ny=0, points=((710, 836), (1160, 836)), lx=-0.85)
+
+# row 1: patrol sectors 1..4
+lab(960, 937, 360, '탐색 단계 · 섹터 i = 1 → 4')
+A1 = step(440, 985, 170, 60, '섹터 i 좌표로 이동', NAVT)
+A2 = dec(645, 980, 115, 70, '이동 완료?')
+A3 = step(795, 990, 95, 50, 'TB4 정지')
+A4 = step(925, 985, 150, 60, 'OAK-D 촬영', ('← Bot: 카메라 이미지', RED))
+A5 = step(1110, 980, 200, 70, '토마토 확인 후 서버 전송', ('→ SM: a_mission · 좌표 · image', BLUE))
+A6 = dec(1345, 975, 120, 80, 'i = 마지막<br>섹터?')
+B1 = step(1495, 980, 125, 70, '재방문 좌표 받기', ('← SM: remission_list', RED), ('(DB 좌표 저장)', '#666'))
+go(U0, A1, ex=0.5, ey=1, nx=0.5, ny=0, points=((905, 930), (525, 930)))
+go(A1, A2)
+go(A2, A3, 'yes', lx=-0.3)
+go(A2, A1, 'no (재시도)', ex=0.5, ey=1, nx=0.5, ny=1, points=((702, 1075), (525, 1075)))
+go(A3, A4); go(A4, A5); go(A5, A6)
+go(A6, A1, 'no · i = i + 1', ex=0.5, ey=0, nx=0.25, ny=0, points=((1405, 962), (482, 962)), lx=-0.2)
+go(A6, B1, 'yes', lx=-0.2)
+
+# row 2: revisit (right -> left)
+lab(1300, 1100, 320, '재방문 단계 · remission_list 좌표')
+B2 = step(1480, 1130, 140, 60, '받은 좌표로 이동', NAVT)
+B3 = dec(1330, 1125, 115, 70, '이동 완료?')
+B4 = step(1200, 1135, 95, 50, 'TB4 정지')
+B5 = step(1040, 1130, 125, 60, 'OAK-D 촬영', ('← Bot: 카메라 이미지', RED))
+B6 = step(830, 1125, 175, 70, '결과 서버 전송', ('→ SM: a_remission · 좌표 · image', BLUE))
+B7 = dec(670, 1120, 125, 80, 'list에<br>남은 좌표?')
+B8 = step(830, 1230, 175, 44, '방문한 좌표 remove')
+E0 = step(430, 1130, 205, 60, '전 작업 완료 → 도킹 스테이션', ('→ Nav2 이동 · Bot /dock → 재대기', BLUE))
+go(B1, B2)
+go(B2, B3); go(B3, B4, 'yes', lx=-0.3); go(B4, B5); go(B5, B6); go(B6, B7)
+go(B3, B2, 'no (재시도)', ex=0.5, ey=1, nx=0.25, ny=1, points=((1387, 1212), (1515, 1212)), lx=-0.1)
+go(B7, B8, 'yes', ex=0.5, ey=1, nx=0, ny=0.5, points=((732, 1252),), lx=-0.5)
+go(B8, B2, ex=1, ey=0.5, nx=0.75, ny=1, points=((1585, 1252),))
+go(B7, E0, 'no', lx=-0.2)
+
+# notes: what the flowchart still needs
+box(430, 1300, 1190, 105,
+    '<b>흐름도에 더하면 좋은 것</b><br>'
+    '① 도킹 중이면 nav2 전에 <b>언도킹</b>이 있어야 합니다 (도킹 상태로는 주행 안 됨). "no → docking" 갈래는 의도를 정해 주세요.<br>'
+    '② "이동 완료? no → 재시도"는 무한 반복될 수 있습니다. nav2 결과(성공·실패·취소)로 판단하고, 예: 3회 실패하면 그 섹터를 건너뛰고 서버에 기록.<br>'
+    '③ 재방문 목록은 언제 오는지 정해야 합니다 (기다리는 시간 제한, 목록이 비어 있으면 바로 도킹 복귀). remove는 로봇·DB 중 누가 지우는지도 정하기.<br>'
+    '④ 탐색 단계와 재방문 단계는 같은 동작(이동 → 정지 → 촬영 → 전송)이라 코드는 하나로 만들고 보내는 토픽(a_mission · a_remission)만 바꾸면 됩니다.<br>'
+    '⑤ 전체 과정 동안 배터리 · 비상정지 · 통신 끊김(3초)을 따로 감시하기.',
+    S(rounded=1, whiteSpace='wrap', html=1, fillColor='#FFFBEA', strokeColor='#E0B800', strokeWidth=1.2, fontSize=11,
+      fontColor='#333333', align='left', verticalAlign='top', spacingLeft=12, spacingTop=6, arcSize=6))
 
 # logic -> nav2 (goal)
-edge(NAVC, BT, label='goal (action client msg)<br>← feedback · result', color=INK, ex=0.5, ey=0, nx=0.5, ny=1, width=2.5,
-     font=11)
-edge(NAVC, WPF, label='또는 follow_waypoints<br>(섹터 1~4 한 번에)', color=GREY, dashed=True, ex=1, ey=0.5, nx=0.5, ny=1,
-     points=((1550, 885),), width=1.5)
-edge(DOCKC, DOCKS, label='Nav2 도킹을 쓸 경우', color=GREY, dashed=True, ex=0.5, ey=0, nx=0.5, ny=1, width=1.5, lx=0.6)
+edge(None, BT, label='이동 단계마다 goal (action client msg)<br>← feedback · result', color=INK, nx=0.5, ny=1,
+     spt=(1350, 800), width=2.5, font=11)
 
 # localization internals & interplay
 edge(MAP, AMCL, color=INK, ex=0, ey=0.375, nx=1, ny=0.375, width=1.5)
@@ -196,22 +242,23 @@ edge(COLL, BOT, label='/cmd_vel', color=BLUE, ex=0.5, ey=0, nx=1, ny=round((355 
      lx=0.55, width=2.5, font=11)
 edge(BOT, NAV, label='/scan · /odom · /tf', color=RED, ex=1, ey=round((400 - 160) / 300, 4), nx=0,
      ny=round((400 - 380) / 380, 4), loff=(0, -10))
-edge(DOCKC, BOT, label='/dock · /undock', color=BLUE, ex=0, ey=0.5, nx=1, ny=round((420 - 160) / 300, 4),
-     points=((345, 870), (345, 420)), lx=-0.86, loff=(0, -10))
-edge(BOT, VIS, label='OAK-D 이미지', color=RED, ex=1, ey=round((440 - 160) / 300, 4), nx=0, ny=0.15,
-     points=((325, 440), (325, 935)), lx=0.84, loff=(0, -10))
+edge(LOGIC, BOT, label='/undock · /dock', color=BLUE, ex=0, ey=round((830 - 800) / 625, 4), nx=1,
+     ny=round((420 - 160) / 300, 4), points=((345, 830), (345, 420)), lx=0.02, loff=(-85, -40))
+edge(BOT, LOGIC, label='카메라 이미지', color=RED, ex=1, ey=round((440 - 160) / 300, 4), nx=0, ny=round((850 - 800) / 625, 4),
+     points=((325, 440), (325, 850)), lx=-0.1, loff=(-75, 40))
 
-# Detect / SM
-edge(DET, VIS, label='탐지 결과', color=RED, ex=1, ey=round((975 - 930) / 110, 4), nx=0, ny=0.55, loff=(0, -10))
-edge(VIS, DET, label='사진 토픽', color=BLUE, ex=0, ey=0.85, nx=1, ny=round((1005 - 930) / 110, 4), loff=(0, 10))
-edge(SM, SRV, label='작업 시작<br>재방문 좌표', color=RED, ex=1, ey=round((1100 - 1060) / 110, 4), nx=0,
-     ny=round((1100 - 1070) / 90, 4), loff=(0, -17))
-edge(SRV, SM, label='a_mission<br>a_remission', color=BLUE, ex=0, ey=round((1130 - 1070) / 90, 4), nx=1,
-     ny=round((1130 - 1060) / 110, 4), loff=(0, 17))
+# SM / Detect
+edge(SM, LOGIC, label='작업 시작<br>remission_list', color=RED, ex=1, ey=round((905 - 880) / 120, 4), nx=0,
+     ny=round((905 - 800) / 625, 4), loff=(0, -17))
+edge(LOGIC, SM, label='a_mission · a_remission<br>(좌표 · image)', color=BLUE, ex=0, ey=round((975 - 800) / 625, 4), nx=1,
+     ny=round((975 - 880) / 120, 4), loff=(0, 17))
+edge(LOGIC, DET, label='image topic', color=BLUE, ex=0, ey=round((1100 - 800) / 625, 4), nx=1,
+     ny=round((1100 - 1060) / 100, 4), loff=(0, -10))
+edge(DET, SM, label='탐지 결과 → DB', color=INK, ex=0.5, ey=0, nx=0.5, ny=1, width=1.5)
 
 xml = ('<mxfile host="app.diagrams.net"><diagram id="robotA-arch" name="로봇 A 시스템 설계도">'
-       '<mxGraphModel dx="1720" dy="1240" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" '
-       'fold="1" page="1" pageScale="1" pageWidth="1720" pageHeight="1240" math="0" shadow="0"><root>'
+       '<mxGraphModel dx="1720" dy="1480" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" '
+       'fold="1" page="1" pageScale="1" pageWidth="1720" pageHeight="1480" math="0" shadow="0"><root>'
        '<mxCell id="0"/><mxCell id="1" parent="0"/>' + ''.join(cells) + '</root></mxGraphModel></diagram></mxfile>')
 open(sys.argv[1], 'w', encoding='utf-8').write(xml)
 print('cells', len(cells))
