@@ -168,7 +168,8 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
 .noderow { display: grid; grid-template-columns: 88px repeat(4, minmax(0, 1fr)) minmax(0, 1.3fr) 30px; gap: 6px; align-items: center; }
 .noderow input, .noderow select { padding: 5px 6px; font-size: 12px; }
 @media (max-width: 700px) { .noderow { grid-template-columns: 1fr 1fr; } .noderow .del { grid-column: 2; justify-self: end; } }
-.item.flash { animation: fresh 2.4s ease-out; }
+.item.flash, .card.flash { animation: fresh 2.4s ease-out; }
+[hidden] { display: none !important; }
 .cmd { display: grid; gap: 6px; }
 .cmd pre { max-height: none; white-space: pre-wrap; word-break: break-all; position: relative; padding-right: 64px; }
 .cmd .copy { position: absolute; top: 6px; right: 6px; padding: 3px 8px; font-size: 11.5px; }
@@ -482,7 +483,7 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
     return `<article class="item" id="code-${esc(c.id)}"><div class="codehead"><span class="pill ${codeCls(c.status)}">${esc(c.status || '작성 중')}</span><b>${esc(c.name || '(이름 없음)')}</b>${c.lang ? `<span class="tag">${esc(c.lang)}</span>` : ''}
       <span class="small muted">${esc(authorName(c.updatedBy || c.author))} · ${fmtTime(c.updatedAt || c.createdAt)}</span>
       ${can ? `<span style="margin-left:auto" class="row"><button class="ghost" data-edit-code="${esc(c.id)}">수정</button><button class="ghost" data-del-code="${esc(c.id)}">삭제</button></span>` : ''}</div>
-      <dl class="kv">${c.path ? `<dt>위치</dt><dd class="path">${esc(c.path)}${c.commit ? ' @ ' + esc(c.commit) : ''}</dd>` : ''}${c.description ? `<dt>하는 일</dt><dd>${esc(c.description)}</dd>` : ''}${c.runCmd ? `<dt>실행</dt><dd><code>${esc(c.runCmd)}</code></dd>` : ''}${r ? `<dt>기반 코드</dt><dd class="path">${esc(r.path || r.title)}</dd>` : ''}${usedBy.length ? `<dt>실행하는 런치</dt><dd>${usedBy.map(x => `<button class="ghost small" data-goto-code="${esc(x.id)}">${esc(x.name)}</button>`).join(' ')}</dd>` : ''}</dl>
+      <dl class="kv">${c.path ? `<dt>위치</dt><dd class="path">${esc(c.path)}${c.commit ? ' @ ' + esc(c.commit) : ''}</dd>` : ''}${c.description ? `<dt>하는 일</dt><dd>${esc(c.description)}</dd>` : ''}${c.runCmd || c.cmdId ? `<dt>실행</dt><dd>${c.runCmd ? `<pre style="margin:0;padding:6px 8px;white-space:pre-wrap;word-break:break-all"><code>${esc(c.runCmd)}</code></pre>` : ''}${byId(S.commands, c.cmdId) ? `<button class="ghost small" data-goto-cmd="${esc(c.cmdId)}">명령어 탭: ${esc(byId(S.commands, c.cmdId).title)}</button>` : ''}</dd>` : ''}${r ? `<dt>기반 코드</dt><dd class="path">${esc(r.path || r.title)}</dd>` : ''}${usedBy.length ? `<dt>실행하는 런치</dt><dd>${usedBy.map(x => `<button class="ghost small" data-goto-code="${esc(x.id)}">${esc(x.name)}</button>`).join(' ')}</dd>` : ''}</dl>
       ${nodesTable(c)}
       ${c.code ? `<details><summary class="small">코드 보기 (${lines}줄)</summary><pre>${esc(c.code)}</pre></details>` : ''}
       ${r && r.code && c.code ? `<details><summary class="small">기반 코드 대비 바뀐 부분</summary>${diffHtml(r.code, c.code)}</details>` : ''}</article>`;
@@ -512,11 +513,13 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
   function cmdCard(k) {
     const can = db && !S.readOnly, tasks = (k.taskIds || []).map(id => byId(S.tasks, id)).filter(Boolean);
     const filled = fillNs(k.cmd, k.team);
-    return `<article class="card cmd"><div class="cmdhead">${k.team === '공통' ? '<span class="tag">공통</span>' : badge({ team: k.team })}${k.terminal ? `<span class="tag">${esc(k.terminal)}</span>` : ''}<span class="pill ${vCls(k.verified)}">${esc(k.verified || '강의 자료')}</span>
+    const usedBy = S.code.filter(c => c.cmdId === k.id);
+    return `<article class="card cmd" id="cmd-${esc(k.id)}"><div class="cmdhead">${k.team === '공통' ? '<span class="tag">공통</span>' : badge({ team: k.team })}${k.terminal ? `<span class="tag">${esc(k.terminal)}</span>` : ''}<span class="pill ${vCls(k.verified)}">${esc(k.verified || '강의 자료')}</span>
       ${can ? `<span style="margin-left:auto" class="row"><button class="ghost small" data-edit-cmd="${esc(k.id)}">수정</button></span>` : ''}</div>
       <h3>${esc(k.title)}</h3>
       <pre><code>${esc(filled)}</code><button class="copy" data-copy-cmd="${esc(k.id)}">복사</button></pre>
       ${k.note ? `<div class="small">${esc(k.note)}</div>` : ''}
+      ${usedBy.length ? `<div class="row small"><span class="muted">이 명령으로 실행하는 코드</span>${usedBy.map(c => `<button class="ghost small" data-goto-code="${esc(c.id)}">${esc(c.name)}</button>`).join('')}</div>` : ''}
       <div class="row small muted">${k.source ? `<span>출처: ${esc(k.source)}</span>` : ''}${tasks.map(t => `<button class="ghost small" data-open="${esc(t.id)}">${badge(t)} ${esc(t.title.length > 18 ? t.title.slice(0, 18) + '…' : t.title)}</button>`).join('')}</div></article>`;
   }
   function cmdModal(existing) {
@@ -696,7 +699,9 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
         <label>커밋 · 브랜치<input name="commit" value="${esc(c.commit || '')}" placeholder="예: a1b2c3d 또는 main"></label>
         <label>언어<select name="lang">${['Python', 'C++', 'Launch', 'YAML', 'Shell', '기타'].map(x => `<option ${c.lang === x ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
         <label>기반 참고 코드<select name="refId">${refOptions(c.refId)}</select></label>
-        <label class="full">실행 명령<input name="runCmd" value="${esc(c.runCmd || '')}" placeholder="예: ros2 run robot_a sector_patrol --ros-args -r __ns:=/robot3"></label>
+        <label class="full"><span class="row" style="justify-content:space-between">실행 명령<select id="cmdPick" style="width:auto;max-width:100%" aria-label="명령어 탭에서 고르기"></select></span>
+          <textarea name="runCmd" class="code" rows="2" placeholder="직접 쓰거나 오른쪽 위에서 명령어 탭의 명령을 고르세요">${esc(c.runCmd || '')}</textarea>
+          <input type="hidden" name="cmdId" value="${esc(c.cmdId || '')}"><span class="small" id="cmdLinked"></span></label>
         <label class="full">하는 일<textarea name="description" placeholder="예: 섹터 목록을 순서대로 돌며 도착하면 사진 토픽을 발행">${esc(c.description || '')}</textarea></label>
         <div class="full grid" id="nodeBox" style="gap:6px" ${c.lang === 'Launch' ? '' : 'hidden'}>
           <div class="row" style="justify-content:space-between"><span class="small" style="font-weight:600">하위 노드 · 포함 런치</span><span class="row"><button type="button" class="ghost small" data-parse>런치 코드에서 자동 추출</button><button type="button" class="ghost small" data-addnode>직접 추가</button></span></div>
@@ -709,12 +714,30 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
       if (!d.name.trim()) { toast('파일 · 노드 이름을 적어 주세요.'); return false; }
       if (d.code.length > 80000) { toast('코드가 너무 깁니다(8만 자 이하). 파일을 나눠 등록해 주세요.'); return false; }
       const nodes = d.lang === 'Launch' ? [...f.querySelectorAll('#nodeRows .noderow')].map(r => ({ kind: r.querySelector('[data-k=kind]').value, pkg: r.querySelector('[data-k=pkg]').value.trim(), exec: r.querySelector('[data-k=exec]').value.trim(), name: r.querySelector('[data-k=name]').value.trim(), ns: r.querySelector('[data-k=ns]').value.trim(), codeId: r.querySelector('[data-k=codeId]').value || null, note: r.dataset.note || '' })).filter(n => n.pkg || n.exec || n.name) : (existing && existing.nodes) || [];
-      const body = { taskId: d.taskId, name: d.name.trim(), status: d.status, path: d.path, commit: d.commit, lang: d.lang, refId: d.refId || null, runCmd: d.runCmd, description: d.description, code: d.code, nodes };
+      const body = { taskId: d.taskId, name: d.name.trim(), status: d.status, path: d.path, commit: d.commit, lang: d.lang, refId: d.refId || null, runCmd: d.runCmd.replace(/\s+$/, ''), cmdId: d.cmdId || null, description: d.description, code: d.code, nodes };
       if (existing) return write(() => db.doc('code/' + existing.id).update({ ...body, ...stamp() }), '사용 코드를 고쳤습니다.');
       return write(() => db.collection('code').add({ ...body, author: S.me || null, createdAt: new Date().toISOString(), ...stamp() }), '코드를 등록했습니다.');
     });
     $('#codeFile', form).addEventListener('change', e => { const file = e.target.files[0]; if (!file) return; const rd = new FileReader(); rd.onload = () => { form.code.value = String(rd.result); if (!form.name.value) form.name.value = file.name; if (/launch/i.test(file.name)) { form.lang.value = 'Launch'; $('#nodeBox', form).hidden = false; } }; rd.readAsText(file); });
     const selfId = existing ? existing.id : null;
+    const taskTeam = () => teamOf(byId(S.tasks, form.taskId.value));
+    const fillPick = () => {
+      const tm = taskTeam();
+      const ks = S.commands.filter(k => k.team === '공통' || k.team === tm).sort((a, b) => (a.order || 0) - (b.order || 0));
+      const parts = [...new Set(ks.map(k => k.part || '기타'))];
+      $('#cmdPick', form).innerHTML = `<option value="">명령어 탭에서 고르기…</option>` + parts.map(pt => `<optgroup label="${esc(pt)}">${ks.filter(k => (k.part || '기타') === pt).map(k => `<option value="${esc(k.id)}" ${k.id === form.cmdId.value ? 'selected' : ''}>${k.team === '공통' ? '' : '[' + esc(k.team) + '] '}${esc(k.title)}</option>`).join('')}</optgroup>`).join('');
+      const k = byId(S.commands, form.cmdId.value);
+      $('#cmdLinked', form).innerHTML = k ? `<span class="muted">연결된 명령어: </span>${esc(k.title)} <button type="button" class="ghost small" data-unlink-cmd>연결 해제</button>` : '';
+      const ul = $('[data-unlink-cmd]', form); if (ul) ul.addEventListener('click', () => { form.cmdId.value = ''; fillPick(); });
+    };
+    fillPick();
+    form.taskId.addEventListener('change', fillPick);
+    $('#cmdPick', form).addEventListener('change', e => {
+      const k = byId(S.commands, e.target.value); if (!k) return;
+      form.runCmd.value = fillNs(k.cmd, k.team === '공통' ? taskTeam() : k.team);
+      form.runCmd.rows = Math.min(8, Math.max(2, form.runCmd.value.split('\n').length));
+      form.cmdId.value = k.id; fillPick();
+    });
     const codeOpts = sel => `<option value="">(연결 안 함)</option>` + S.code.filter(x => x.id !== selfId).map(x => `<option value="${esc(x.id)}" ${x.id === sel ? 'selected' : ''}>${esc(x.name)}${x.status ? ' · ' + esc(x.status) : ''}</option>`).join('');
     const addRow = n => {
       const r = document.createElement('div'); r.className = 'noderow'; r.dataset.note = n.note || '';
@@ -808,6 +831,15 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
     if (pb) { S.cmdPart = pb.dataset.part; render(true); return; }
     const ec = e.target.closest('[data-edit-cmd]');
     if (ec) { cmdModal(byId(S.commands, ec.dataset.editCmd)); return; }
+    const gc = e.target.closest('[data-goto-cmd]');
+    if (gc) {
+      const kid = gc.dataset.gotoCmd; const k = byId(S.commands, kid); if (!k) return;
+      if (k.team !== '공통' && S.team !== 'all' && S.team !== k.team) { S.team = 'all'; try { localStorage.setItem('team', 'all'); } catch (err) {} }
+      S.cmdPart = 'all'; S.cmdQuery = '';
+      if (location.hash !== '#cmds') { lastView = 'cmds'; location.hash = 'cmds'; } else render(true);
+      setTimeout(() => { const n = document.getElementById('cmd-' + kid); if (n) { n.scrollIntoView({ block: 'center', behavior: 'smooth' }); n.classList.add('flash'); } }, 120);
+      return;
+    }
     const go = e.target.closest('[data-goto-code]');
     if (go) {
       const cid = go.dataset.gotoCode; const c = byId(S.code, cid); if (!c) return;
