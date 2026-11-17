@@ -206,6 +206,7 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
 .verlist { display: grid; gap: 6px; }
 .verrow { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; display: grid; gap: 6px; background: var(--panel); }
 .verrow.cur { border-color: var(--accent); }
+.verrow .row > details[open] { flex-basis: 100%; }
 .verrow header { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 12.5px; }
 .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .toolbar input, .toolbar select { width: auto; max-width: 100%; }
@@ -548,17 +549,53 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
   }
   const versOf = cid => S.codeVersions.filter(v => v.codeId === cid).sort((a, b) => (a.v || 0) - (b.v || 0) || (a.createdAt || '').localeCompare(b.createdAt || ''));
   function versionsHtml(c) {
-    const vs = versOf(c.id); if (!vs.length) return '';
-    const can = db && !S.readOnly, cur = c.ver || vs[vs.length - 1].v;
-    return `<details><summary class="small">버전 기록 ${vs.length}개 (현재 v${esc(cur)})</summary><div class="verlist">${[...vs].reverse().map(v => `<div class="verrow ${v.v === cur ? 'cur' : ''}"><header><span class="ver">v${esc(v.v)}</span>${v.v === cur ? '<span class="tag">현재</span>' : ''}<span class="pill ${codeCls(v.status)}">${esc(v.status || '')}</span><span class="muted">${esc(authorName(v.author))}${v.author ? ' · ' : ''}${fmtTime(v.createdAt)}</span>
-        ${can && v.v !== cur ? `<span style="margin-left:auto"><button class="ghost small" data-ver-restore="${esc(v.id)}">이 버전으로 되돌리기</button></span>` : ''}</header>
+    const vs = versOf(c.id), can = db && !S.readOnly;
+    const addBtn = can ? `<button class="ghost small" data-ver-add="${esc(c.id)}">이전 버전 코드 추가</button>` : '';
+    if (!vs.length) return addBtn ? `<div class="row small"><span class="muted">버전 기록 없음 · 이 웹을 쓰기 전 코드가 있으면 올려 두세요</span>${addBtn}</div>` : '';
+    const cur = c.ver || vs[vs.length - 1].v;
+    return `<details ${S.openVers === c.id ? 'open' : ''} data-vers="${esc(c.id)}"><summary class="small">버전 기록 ${vs.length}개 (현재 v${esc(cur)})</summary><div class="verlist">${[...vs].reverse().map(v => `<div class="verrow ${v.v === cur ? 'cur' : ''}"><header><span class="ver">v${esc(v.v)}</span>${v.v === cur ? '<span class="tag">현재</span>' : ''}${v.imported ? '<span class="tag">직접 올린 이전 코드</span>' : ''}<span class="pill ${codeCls(v.status)}">${esc(v.status || '')}</span><span class="muted">${esc(authorName(v.author))}${v.author ? ' · ' : ''}${fmtTime(v.writtenAt || v.createdAt)}</span><span class="muted">${String(v.code || '').split('\n').length}줄</span>
+        <span style="margin-left:auto" class="row"><button class="ghost small" data-copy-ver="${esc(v.id)}">복사</button>${downloads ? `<button class="ghost small" data-save-ver="${esc(v.id)}">파일로 저장</button>` : ''}${can && v.v !== cur ? `<button class="ghost small" data-ver-restore="${esc(v.id)}">이 버전으로 되돌리기</button>` : ''}</span></header>
         ${v.note ? `<div class="small">${esc(v.note)}</div>` : ''}
-        <details data-ver-detail="${esc(v.id)}"><summary class="small">코드 · 이전 버전과 비교</summary><div class="small muted">불러오는 중…</div></details></div>`).join('')}</div></details>`;
+        <div class="row small"><details data-ver-show="${esc(v.id)}|code"><summary>코드 보기</summary></details><details data-ver-show="${esc(v.id)}|prev"><summary>이전 버전과 비교</summary></details>${v.v !== cur ? `<details data-ver-show="${esc(v.id)}|cur"><summary>현재 코드와 비교</summary></details>` : ''}</div></div>`).join('')}</div>${addBtn ? `<div style="margin-top:6px">${addBtn}</div>` : ''}</details>`;
   }
-  function verDetailHtml(vid) {
-    const v = byId(S.codeVersions, vid); if (!v) return '';
-    const vs = versOf(v.codeId), i = vs.findIndex(x => x.id === vid), prev = i > 0 ? vs[i - 1] : null;
-    return `${prev ? `<div class="small muted">v${esc(prev.v)} → v${esc(v.v)} 바뀐 부분</div>${diffHtml(prev.code, v.code)}` : '<div class="small muted">첫 버전입니다.</div>'}${v.runCmd ? `<div class="small"><span class="muted">실행 명령 </span><code>${esc(v.runCmd)}</code></div>` : ''}<details><summary class="small">v${esc(v.v)} 전체 코드</summary><pre>${esc(v.code || '')}</pre></details>`;
+  function verDetailHtml(key) {
+    const [vid, mode] = key.split('|'); const v = byId(S.codeVersions, vid); if (!v) return '';
+    const vs = versOf(v.codeId), i = vs.findIndex(x => x.id === vid), prev = i > 0 ? vs[i - 1] : null, c = byId(S.code, v.codeId);
+    if (mode === 'code') return `<pre>${esc(v.code || '')}</pre>${v.runCmd ? `<div class="small"><span class="muted">실행 명령 </span><code>${esc(v.runCmd)}</code></div>` : ''}`;
+    if (mode === 'prev') return prev ? `<div class="small muted">v${esc(prev.v)} → v${esc(v.v)}</div>${diffHtml(prev.code, v.code)}` : '<div class="small muted">첫 버전이라 비교할 이전 버전이 없습니다.</div>';
+    if (mode === 'cur') return c ? `<div class="small muted">v${esc(v.v)} → 현재 코드</div>${diffHtml(v.code, c.code)}` : '';
+    return '';
+  }
+  const verFileName = v => { const c = byId(S.code, v.codeId); const n = (c && c.name) || 'code.txt'; const m = n.match(/^(.*?)(\.[^.]+)?$/); return `${m[1]}_v${v.v}${m[2] || '.txt'}`; };
+  function verAddModal(codeId) {
+    const c = byId(S.code, codeId); if (!c) return;
+    const vs = versOf(codeId), minV = vs.length ? Math.min(...vs.map(x => x.v || 0)) : null;
+    const sug = vs.length ? Math.max(0, minV - 1) : 1;
+    const form = modal(`<h2>이전 버전 코드 추가 · ${esc(c.name)}</h2>
+      <div class="notice small">이 웹을 쓰기 전에 만든 코드나, 기록하지 못한 중간 버전을 올려 둡니다. 현재 코드는 바뀌지 않습니다.${vs.length ? '' : ' 버전 기록이 아직 없어서, 저장하면 지금 코드도 다음 번호로 함께 보관됩니다.'}</div>
+      <div class="formgrid">
+        <label>버전 번호<input name="v" type="number" min="0" value="${esc(sug)}" required></label>
+        <label>작성 시점 (선택)<input name="when" type="date"></label>
+        <label>상태<select name="status">${CODE_STATUS.map(x => `<option ${x === '작성 중' ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
+        <label>메모<input name="note" placeholder="예: 강의 예제를 처음 복사해 고친 버전"></label>
+        <label class="full"><span class="row" style="justify-content:space-between">코드<input type="file" id="verFile" accept=".py,.cpp,.hpp,.h,.yaml,.yml,.launch,.xml,.sh,.txt,.json" style="width:auto"></span><textarea name="code" class="code" rows="14" required></textarea></label>
+        <label class="full">실행 명령 (선택)<input name="runCmd"></label>
+      </div>`, async f => {
+      const d = Object.fromEntries(new FormData(f).entries());
+      if (!d.code.trim()) { toast('코드를 붙여넣거나 파일을 불러와 주세요.'); return false; }
+      if (d.code.length > 80000) { toast('코드가 너무 깁니다(8만 자 이하).'); return false; }
+      const v = Math.max(0, parseInt(d.v, 10) || 0), now = new Date().toISOString();
+      return write(async () => {
+        if (!versOf(codeId).length) {
+          const curV = v + 1;
+          await db.collection('codeVersions').add({ codeId, v: curV, code: c.code || '', runCmd: c.runCmd || '', status: c.status || '', note: '현재 코드 (자동 보관)', author: c.author || null, createdAt: c.updatedAt || c.createdAt || now });
+          await db.doc('code/' + codeId).update({ ver: curV, ...stamp() });
+        }
+        await db.collection('codeVersions').add({ codeId, v, code: d.code, runCmd: d.runCmd || '', status: d.status, note: d.note || '이전 버전 (직접 올림)', imported: true, writtenAt: d.when ? d.when + 'T00:00:00+09:00' : null, author: S.me || null, createdAt: now });
+        S.openVers = codeId;
+      }, `v${v} 코드를 보관했습니다.`);
+    });
+    $('#verFile', form).addEventListener('change', e => { const file = e.target.files[0]; if (!file) return; const rd = new FileReader(); rd.onload = () => { form.code.value = String(rd.result); }; rd.readAsText(file); });
   }
   async function saveVersion(codeId, data, note) {
     const vs = versOf(codeId), v = (vs.length ? Math.max(...vs.map(x => x.v || 0)) : 0) + 1;
@@ -933,10 +970,16 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
 
   // ---------- events ----------
   document.addEventListener('click', async e => {
+    const va = e.target.closest('[data-ver-add]');
+    if (va) { verAddModal(va.dataset.verAdd); return; }
+    const vc = e.target.closest('[data-copy-ver]');
+    if (vc) { const v = byId(S.codeVersions, vc.dataset.copyVer); if (!v) return; try { await navigator.clipboard.writeText(v.code || ''); vc.textContent = '복사됨'; setTimeout(() => { vc.textContent = '복사'; }, 1500); } catch (err) { toast('복사하지 못했습니다. "코드 보기"를 열어 직접 선택해 주세요.'); } return; }
+    const vs2 = e.target.closest('[data-save-ver]');
+    if (vs2) { const v = byId(S.codeVersions, vs2.dataset.saveVer); if (!v || !downloads) return; try { await downloads.save({ filename: verFileName(v), data: v.code || '' }); } catch (err) { if (!err || err.code !== 'declined') toast('파일로 저장하지 못했습니다.'); } return; }
     const vr = e.target.closest('[data-ver-restore]');
     if (vr) {
       if (vr.dataset.confirm !== '1') { vr.dataset.confirm = '1'; vr.textContent = '한 번 더 누르면 되돌림'; setTimeout(() => { vr.dataset.confirm = ''; vr.textContent = '이 버전으로 되돌리기'; }, 3000); return; }
-      const v = byId(S.codeVersions, vr.dataset.verRestore); const c = v && byId(S.code, v.codeId); if (!c) return;
+      const v = byId(S.codeVersions, vr.dataset.verRestore); const c = v && byId(S.code, v.codeId); if (!c) return; S.openVers = c.id;
       await write(async () => { const nv = await saveVersion(c.id, v, `v${v.v}로 되돌림`); await db.doc('code/' + c.id).update({ code: v.code || '', runCmd: v.runCmd || '', status: v.status || c.status, ver: nv, ...stamp() }); }, `v${v.v} 내용으로 되돌렸습니다 (새 버전으로 기록).`);
       return;
     }
@@ -1050,7 +1093,11 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
   });
   document.addEventListener('focusout', e => { if (e.target.id === 'noteBody' || e.target.id === 'noteTitle') flushNote(); });
   window.addEventListener('pagehide', () => { flushNote(); });
-  document.addEventListener('toggle', e => { const d = e.target; if (d && d.dataset && d.dataset.verDetail && d.open && !d.dataset.filled) { d.dataset.filled = '1'; d.querySelector('div.small.muted') && d.querySelector('div.small.muted').remove(); d.insertAdjacentHTML('beforeend', verDetailHtml(d.dataset.verDetail)); } }, true);
+  document.addEventListener('toggle', e => {
+    const d = e.target; if (!d || !d.dataset) return;
+    if (d.dataset.vers) { S.openVers = d.open ? d.dataset.vers : (S.openVers === d.dataset.vers ? null : S.openVers); return; }
+    if (d.dataset.verShow && d.open && !d.dataset.filled) { d.dataset.filled = '1'; const box = document.createElement('div'); box.style.cssText = 'flex-basis:100%;margin-top:6px'; box.innerHTML = verDetailHtml(d.dataset.verShow); d.appendChild(box); }
+  }, true);
   window.addEventListener('hashchange', () => { const v = view(); if (v !== 'task') lastView = v; render(true); sharePresence(); });
 
   // ---------- who is here (live presence) ----------
