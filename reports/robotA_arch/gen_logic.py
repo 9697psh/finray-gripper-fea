@@ -58,11 +58,9 @@ box(35, 20, 195, 70, '<b>main PC</b>', S(rounded=0, whiteSpace='wrap', html=1, f
                                          strokeWidth=2, fontSize=22, fontColor=INK))
 text(35, 98, 195, 26, 'server', size=19)
 ST = oval(35, 140, 180, 70, '<b>작업 시작</b>', RED)
-D0 = dia(400, 125, 250, 90, '<b>is docking?</b>', RED)
-DK = step(440, 270, 130, 40, 'docking')
+D0 = dia(400, 125, 250, 90, '<b>is docked?</b><br><span style="font-size:11px">(dock_status · is_docked)</span>', RED)
 UD = box(625, 66, 150, 40, '<b>언도킹</b> (/undock)', ADD)
 edge(ST, D0, color=RED, width=2)
-edge(D0, DK, 'no', color=RED, ex=0.5, ey=1, nx=0.5, ny=0, lx=-0.2, width=2)
 
 # ---- 1단계: 순찰 ----
 text(905, 26, 220, 26, 'Robot A', size=17)
@@ -76,8 +74,8 @@ FD = dia(615, 245, 245, 115, 'i = final<br>sector?')
 
 edge(D0, UD, 'yes', color=RED, ex=0.5, ey=0, nx=0, ny=0.5, points=((525, 86),), lx=-0.3, width=2)
 edge(UD, P1, ex=1, ey=0.5, nx=0, ny=0.5, color=OR)
-edge(DK, UD, add_note('위치 맞춘 뒤 다시 출발'), ex=1, ey=0.5, nx=0.5, ny=1, points=((610, 290), (610, 228), (700, 228)), color=OR, lx=-0.086, loff=(0, -11), font=11)
-edge(FD, P1, 'no &nbsp; · &nbsp; i = i+1', ex=0.5, ey=0, nx=0.5, ny=1, points=((737, 160), (1015, 160)), lx=0.1, loff=(0, -12))
+edge(D0, P1, 'no<br>' + add_note('바로 출발'), color=RED, ex=1, ey=0.5, nx=0, ny=0.85, points=((820, 170), (820, 106)), lx=-0.55, width=2, font=12)
+edge(FD, P1, 'no &nbsp; · &nbsp; i = i+1', ex=0.5, ey=0, nx=0.5, ny=1, points=((737, 200), (1015, 200)), lx=0.1, loff=(0, -12))
 edge(P1, M1, '<b>nav2</b>', lbg=NAVBG, fcol=INK, font=14)
 edge(M1, D1, ex=0.5, ey=1, nx=0.5, ny=0)
 edge(D1, M1, 'no<br>(재확인)<br>' + add_note('3회 실패 시 건너뛰고<br>서버에 기록'), ex=1, ey=0.5, nx=1, ny=0.5, points=((1590, 230), (1590, 86)), lx=-0.2, loff=(58, 0), font=11)
