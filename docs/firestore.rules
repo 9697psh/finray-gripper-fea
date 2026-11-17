@@ -1,0 +1,17 @@
+rules_version = '2';
+// Firebase 콘솔 → Firestore Database → 규칙(Rules)에 이 내용을 붙여 넣고 [게시]하세요.
+// 로그인 없이 쓰는 팀 작업 노트용: 정해진 컬렉션만 읽고 쓸 수 있고, 문서 하나는 약 900KB 이하.
+// 주소를 아는 사람은 누구나 읽고 쓸 수 있다는 점을 기억하세요. 비밀번호·개인정보는 올리지 마세요.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function known(c) {
+      return c in ['tasks', 'refs', 'attempts', 'logs', 'media', 'interfaces', 'code', 'commands',
+                   'settings', 'todos', 'notes', 'codeVersions', 'cmdSets', 'users', 'presence'];
+    }
+    match /{coll}/{id} {
+      allow read: if known(coll);
+      allow delete: if known(coll);
+      allow create, update: if known(coll) && request.resource.data.keys().size() < 60;
+    }
+  }
+}
