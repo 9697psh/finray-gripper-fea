@@ -208,6 +208,18 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
 .verrow.cur { border-color: var(--accent); }
 .verrow .row > details[open] { flex-basis: 100%; }
 .verrow header { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 12.5px; }
+.sets { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); }
+@media (max-width: 500px) { .sets { grid-template-columns: 1fr; } }
+.setcard { border: 1px solid var(--accent); border-radius: 10px; background: var(--panel); padding: 14px; display: grid; gap: 8px; min-width: 0; }
+.setcard ol { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 8px; counter-reset: st; }
+.setcard li { display: grid; gap: 4px; counter-increment: st; }
+.setcard li > div:first-child::before { content: counter(st) "."; font-weight: 700; margin-right: 6px; color: var(--accent); }
+.setcard pre { margin: 0; white-space: pre-wrap; word-break: break-all; max-height: none; position: relative; padding-right: 60px; }
+.setcard .copy { position: absolute; top: 5px; right: 5px; padding: 2px 8px; font-size: 11px; }
+.stepedit { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 6px; align-items: center; padding: 6px; border: 1px solid var(--line); border-radius: 7px; }
+.stepedit .n { font-weight: 700; color: var(--accent); text-align: center; }
+.stepedit .btns { display: flex; gap: 4px; }
+.stepedit .btns button { padding: 2px 7px; }
 .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .toolbar input, .toolbar select { width: auto; max-width: 100%; }
 .toolbar > span.row { min-width: 0; max-width: 100%; flex: 1 1 260px; justify-content: flex-end; }
@@ -267,7 +279,7 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
   const nextMilestone = () => MILESTONES.find(m => new Date(m.at) > Date.now());
 
   // ---------- state ----------
-  const S = { tasks: [], refs: [], attempts: [], logs: [], media: [], interfaces: [], code: [], commands: [], settings: [], todos: [], notes: [], codeVersions: [], loaded: {}, team: (() => { try { return localStorage.getItem('team') || 'all'; } catch (e) { return 'all'; } })(), me: null, canWrite: null, readOnly: false, names: {} };
+  const S = { tasks: [], refs: [], attempts: [], logs: [], media: [], interfaces: [], code: [], commands: [], settings: [], todos: [], notes: [], codeVersions: [], cmdSets: [], loaded: {}, team: (() => { try { return localStorage.getItem('team') || 'all'; } catch (e) { return 'all'; } })(), me: null, canWrite: null, readOnly: false, names: {} };
   let db = null, user = null, assets = null, downloads = null, room = null;
 
   // ---------- helpers ----------
@@ -349,7 +361,7 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
     if (v === 'task') openTask(location.hash.slice(6)); else closeSheet();
   }
   let lastView = 'overview';
-  const COLLS = ['tasks', 'refs', 'attempts', 'logs', 'media', 'interfaces', 'code', 'commands', 'settings', 'todos', 'notes', 'codeVersions'];
+  const COLLS = ['tasks', 'refs', 'attempts', 'logs', 'media', 'interfaces', 'code', 'commands', 'settings', 'todos', 'notes', 'codeVersions', 'cmdSets'];
 
   function vOverview() {
     const T = teamTasks();
@@ -620,6 +632,78 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
     const team = tm === 'B' ? 'B' : tm === 'A' ? 'A' : (S.team === 'B' ? 'B' : 'A');
     const n = nsOf(team); return n ? String(cmd).replace(/<n>/g, n) : String(cmd);
   }
+  const setTeamOk = x => S.team === 'all' || x.team === '공통' || x.team === S.team;
+  function stepOf(st, setTeam) {
+    if (st.cmdId) { const k = byId(S.commands, st.cmdId); if (!k) return { title: '(삭제된 명령어)', cmd: '', terminal: '', missing: true }; return { title: k.title, cmd: fillNs(k.cmd, k.team === '공통' ? (setTeam === '공통' ? null : setTeam) : k.team), terminal: st.terminal || k.terminal || '', note: st.note || '' }; }
+    return { title: st.title || '직접 입력', cmd: fillNs(st.text || '', setTeam === '공통' ? null : setTeam), terminal: st.terminal || '', note: st.note || '', custom: true };
+  }
+  function setScript(x) {
+    const steps = (x.items || []).map(st => stepOf(st, x.team)).filter(st => st.cmd);
+    return `# ${x.name}${x.note ? ' — ' + x.note : ''}\n` + steps.map((st, i) => `\n# ${i + 1}. ${st.title}${st.terminal ? ' (' + st.terminal + ')' : ''}\n${st.cmd}`).join('\n') + '\n';
+  }
+  function setsSection() {
+    const can = db && !S.readOnly, X = S.cmdSets.filter(setTeamOk).sort((a, b) => (a.order || 0) - (b.order || 0) || (a.createdAt || '').localeCompare(b.createdAt || ''));
+    return `<div class="panel grid" style="gap:10px"><div class="row"><h3>명령어 묶음</h3><span class="small muted">자주 같이 쓰는 명령을 순서대로 묶고 이름을 붙여 둡니다. "전체 복사"로 한 번에 가져갈 수 있습니다.</span>${can ? '<button class="primary" style="margin-left:auto" data-act="newset">묶음 만들기</button>' : ''}</div>
+      ${X.length ? `<div class="sets">${X.map(setCard).join('')}</div>` : '<div class="empty">아직 묶음이 없습니다. 예: "로봇 A 주행 시작" = 로컬라이제이션 → RViz → undock → Nav2</div>'}</div>`;
+  }
+  function setCard(x) {
+    const can = db && !S.readOnly, steps = (x.items || []).map(st => stepOf(st, x.team));
+    return `<article class="setcard" id="set-${esc(x.id)}"><div class="cmdhead">${x.team === '공통' ? '<span class="tag">공통</span>' : badge({ team: x.team })}<h3 style="margin:0">${esc(x.name)}</h3><span class="small muted">${steps.length}단계</span>
+      <span style="margin-left:auto" class="row"><button class="ghost small" data-copy-set="${esc(x.id)}">전체 복사</button>${downloads ? `<button class="ghost small" data-save-set="${esc(x.id)}">.sh로 저장</button>` : ''}${can ? `<button class="ghost small" data-edit-set="${esc(x.id)}">수정</button>` : ''}</span></div>
+      ${x.note ? `<div class="small">${esc(x.note)}</div>` : ''}
+      <ol>${steps.map((st, i) => `<li><div class="small"><b>${esc(st.title)}</b> ${st.terminal ? `<span class="tag">${esc(st.terminal)}</span>` : ''}${st.custom ? ' <span class="tag">직접 입력</span>' : ''}${st.missing ? ' <span class="tag">원본 명령어가 삭제됨</span>' : ''}${st.note ? ` <span class="muted">${esc(st.note)}</span>` : ''}</div>${st.cmd ? `<pre><code>${esc(st.cmd)}</code><button class="copy" data-copy-step="${esc(x.id)}|${i}">복사</button></pre>` : ''}</li>`).join('')}</ol></article>`;
+  }
+  function setModal(existing, preCmdId) {
+    const x = existing ? JSON.parse(JSON.stringify(existing)) : { name: '', note: '', team: S.team === 'all' ? '공통' : S.team, items: preCmdId ? [{ cmdId: preCmdId }] : [] };
+    const form = modal(`<h2>${existing ? '명령어 묶음 수정' : '명령어 묶음 만들기'}</h2><div class="formgrid">
+      <label>묶음 이름<input name="name" value="${esc(x.name)}" required placeholder="예: 로봇 A 주행 시작"></label>
+      <label>팀<select name="team">${['공통', 'A', 'B'].map(t => `<option ${x.team === t ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+      <label class="full">설명<input name="note" value="${esc(x.note || '')}" placeholder="예: 맵을 만든 뒤 매번 이 순서로 실행"></label>
+      <div class="full grid" style="gap:6px"><div class="row" style="justify-content:space-between"><b class="small">단계 (위에서부터 순서대로)</b></div><div id="steps" class="grid" style="gap:6px"></div>
+        <div class="row"><select id="addCmd" style="flex:1 1 240px;width:auto;min-width:0" aria-label="명령어 탭에서 단계 추가"></select><button type="button" class="ghost small" data-add-custom>직접 입력 단계 추가</button></div></div>
+      ${existing ? '<div class="full"><button type="button" class="ghost" data-del-set>이 묶음 삭제</button></div>' : ''}</div>`, async f => {
+      const name = f.name.value.trim(); if (!name) { toast('묶음 이름을 적어 주세요.'); return false; }
+      const items = [...f.querySelectorAll('#steps .stepedit')].map(r => r.dataset.cmd ? { cmdId: r.dataset.cmd, terminal: r.querySelector('[data-k=term]').value.trim(), note: r.querySelector('[data-k=note]').value.trim() } : { title: r.querySelector('[data-k=title]').value.trim() || '직접 입력', text: r.querySelector('[data-k=text]').value, terminal: r.querySelector('[data-k=term]').value.trim(), note: '' }).filter(it => it.cmdId || (it.text || '').trim());
+      if (!items.length) { toast('단계를 하나 이상 넣어 주세요.'); return false; }
+      const body = { name, note: f.note.value.trim(), team: f.team.value, items };
+      if (existing) return write(() => db.doc('cmdSets/' + existing.id).update({ ...body, ...stamp() }), '묶음을 고쳤습니다.');
+      return write(() => db.collection('cmdSets').add({ ...body, order: Math.max(0, ...S.cmdSets.map(s2 => s2.order || 0)) + 1, author: S.me || null, createdAt: new Date().toISOString(), ...stamp() }), `"${name}" 묶음을 만들었습니다.`);
+    });
+    const box = $('#steps', form);
+    const renum = () => [...box.children].forEach((r, i) => { r.querySelector('.n').textContent = i + 1; });
+    const addStep = st => {
+      const r = document.createElement('div'); r.className = 'stepedit';
+      if (st.cmdId) {
+        r.dataset.cmd = st.cmdId; const k = byId(S.commands, st.cmdId);
+        r.innerHTML = `<span class="n"></span><div class="grid" style="gap:4px;min-width:0"><div class="small"><b>${esc(k ? k.title : '(삭제된 명령어)')}</b> <span class="muted">${esc(k ? k.part || '' : '')}</span></div><code class="small path" style="white-space:pre-wrap">${esc(k ? k.cmd : '')}</code><div class="row"><input data-k="term" value="${esc(st.terminal || '')}" placeholder="터미널 (기본: ${esc(k && k.terminal || '없음')})" style="width:150px"><input data-k="note" value="${esc(st.note || '')}" placeholder="이 단계 메모" style="flex:1 1 140px;width:auto;min-width:0"></div></div>`;
+      } else {
+        r.innerHTML = `<span class="n"></span><div class="grid" style="gap:4px;min-width:0"><input data-k="title" value="${esc(st.title || '')}" placeholder="단계 이름 (예: 워크스페이스로 이동)"><textarea data-k="text" class="code" rows="2" placeholder="명령어 (&lt;n&gt;은 로봇 번호로 바뀜)">${esc(st.text || '')}</textarea><input data-k="term" value="${esc(st.terminal || '')}" placeholder="터미널" style="width:150px"></div>`;
+      }
+      const b = document.createElement('div'); b.className = 'btns';
+      b.innerHTML = '<button type="button" class="ghost" data-mv="-1" aria-label="위로">↑</button><button type="button" class="ghost" data-mv="1" aria-label="아래로">↓</button><button type="button" class="ghost" data-rm aria-label="단계 삭제">×</button>';
+      r.appendChild(b);
+      b.addEventListener('click', ev => { const t = ev.target.closest('button'); if (!t) return; if (t.dataset.rm !== undefined) r.remove(); else { const d = +t.dataset.mv; if (d < 0 && r.previousElementSibling) box.insertBefore(r, r.previousElementSibling); if (d > 0 && r.nextElementSibling) box.insertBefore(r.nextElementSibling, r); } renum(); });
+      box.appendChild(r); renum();
+    };
+    (x.items || []).forEach(addStep);
+    const pick = $('#addCmd', form);
+    const fillPick = () => { const tm = form.team.value; const ks = S.commands.filter(k => tm === '공통' || k.team === '공통' || k.team === tm).sort((a, b) => (a.order || 0) - (b.order || 0)); const parts = [...new Set(ks.map(k => k.part || '기타'))];
+      pick.innerHTML = '<option value="">명령어 탭에서 단계 추가…</option>' + parts.map(pt => `<optgroup label="${esc(pt)}">${ks.filter(k => (k.part || '기타') === pt).map(k => `<option value="${esc(k.id)}">${k.team === '공통' ? '' : '[' + esc(k.team) + '] '}${esc(k.title)}</option>`).join('')}</optgroup>`).join(''); };
+    fillPick(); form.team.addEventListener('change', fillPick);
+    pick.addEventListener('change', () => { if (pick.value) { addStep({ cmdId: pick.value }); pick.value = ''; } });
+    $('[data-add-custom]', form).addEventListener('click', () => addStep({ title: '', text: '' }));
+    if (existing) { const del = $('[data-del-set]', form); del.addEventListener('click', async () => { if (del.dataset.confirm !== '1') { del.dataset.confirm = '1'; del.textContent = '한 번 더 누르면 삭제'; return; } const ok = await write(() => db.doc('cmdSets/' + existing.id).delete(), '묶음을 삭제했습니다.'); if (ok) form.parentElement.remove(); }); }
+  }
+  function addToSetModal(cmdId) {
+    const k = byId(S.commands, cmdId); if (!k) return;
+    const X = S.cmdSets.filter(setTeamOk);
+    if (!X.length) { setModal(null, cmdId); return; }
+    modal(`<h2>묶음에 추가 · ${esc(k.title)}</h2><label>어느 묶음에 넣을까요?<select name="set">${X.map(x => `<option value="${esc(x.id)}">${esc(x.name)} (${(x.items || []).length}단계)</option>`).join('')}<option value="__new">+ 새 묶음 만들기</option></select></label><div class="small muted">묶음의 맨 끝 단계로 추가됩니다.</div>`, async f => {
+      if (f.set.value === '__new') { setTimeout(() => setModal(null, cmdId), 0); return true; }
+      const x = byId(S.cmdSets, f.set.value); if (!x) return false;
+      return write(() => db.doc('cmdSets/' + x.id).update({ items: [...(x.items || []), { cmdId }], ...stamp() }), `"${x.name}"에 추가했습니다.`);
+    });
+  }
   function vCmds() {
     const can = db && !S.readOnly, part = S.cmdPart || 'all', q = (S.cmdQuery || '').toLowerCase();
     const K = S.commands.filter(k => S.team === 'all' || k.team === '공통' || k.team === S.team).filter(k => (part === 'all' || k.part === part) && (!q || [k.title, k.cmd, k.note, k.part].join(' ').toLowerCase().includes(q))).sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -631,6 +715,7 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
       <div class="panel nsbox"><b>로봇 번호</b><label class="row" style="display:flex;gap:6px;align-items:center;color:var(--fg)">${badge({ team: 'A' })} /robot<input id="nsA" value="${esc(ns.A || '')}" placeholder="예: 3" ${can ? '' : 'disabled'} aria-label="로봇 A 번호"></label>
         <label class="row" style="display:flex;gap:6px;align-items:center;color:var(--fg)">${badge({ team: 'B' })} /robot<input id="nsB" value="${esc(ns.B || '')}" placeholder="예: 4" ${can ? '' : 'disabled'} aria-label="로봇 B 번호"></label>
         <span class="small muted">공통 명령은 위쪽 팀 선택 기준(전체일 때는 A)으로 바뀝니다. 번호를 바꾸면 모든 팀원 화면에 반영됩니다.</span></div>
+      ${setsSection()}
       <div class="partnav" role="group" aria-label="파트 선택"><button data-part="all" aria-pressed="${part === 'all'}">전체</button>${parts.map(pt => `<button data-part="${esc(pt)}" aria-pressed="${part === pt}">${esc(pt)}</button>`).join('')}</div>
       ${K.length ? used.map(pt => `<div class="group-title"><h3>${esc(pt)}</h3><span class="small muted">${K.filter(k => k.part === pt).length}개</span></div><div class="cards">${K.filter(k => k.part === pt).map(cmdCard).join('')}</div>`).join('')
         : `<div class="empty">${S.commands.length ? '조건에 맞는 명령어가 없습니다.' : '아직 등록한 명령어가 없습니다.'}</div>`}
@@ -641,7 +726,7 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
     const filled = fillNs(k.cmd, k.team);
     const usedBy = S.code.filter(c => c.cmdId === k.id);
     return `<article class="card cmd" id="cmd-${esc(k.id)}"><div class="cmdhead">${k.team === '공통' ? '<span class="tag">공통</span>' : badge({ team: k.team })}${k.terminal ? `<span class="tag">${esc(k.terminal)}</span>` : ''}<span class="pill ${vCls(k.verified)}">${esc(k.verified || '강의 자료')}</span>
-      ${can ? `<span style="margin-left:auto" class="row"><button class="ghost small" data-edit-cmd="${esc(k.id)}">수정</button></span>` : ''}</div>
+      ${can ? `<span style="margin-left:auto" class="row"><button class="ghost small" data-add-to-set="${esc(k.id)}">묶음에 추가</button><button class="ghost small" data-edit-cmd="${esc(k.id)}">수정</button></span>` : ''}</div>
       <h3>${esc(k.title)}</h3>
       <pre><code>${esc(filled)}</code><button class="copy" data-copy-cmd="${esc(k.id)}">복사</button></pre>
       ${k.note ? `<div class="small">${esc(k.note)}</div>` : ''}
@@ -993,6 +1078,18 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
     if (cp) { const k = byId(S.commands, cp.dataset.copyCmd); if (!k) return; const txt = fillNs(k.cmd, k.team); try { await navigator.clipboard.writeText(txt); cp.textContent = '복사됨'; setTimeout(() => { cp.textContent = '복사'; }, 1500); } catch (err) { const r = document.createRange(); r.selectNodeContents(cp.parentElement.querySelector('code')); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); toast('선택해 두었습니다. Ctrl+C로 복사하세요.'); } return; }
     const pb = e.target.closest('[data-part]');
     if (pb) { S.cmdPart = pb.dataset.part; render(true); return; }
+    const es = e.target.closest('[data-edit-set]'); if (es) { setModal(byId(S.cmdSets, es.dataset.editSet)); return; }
+    const ats = e.target.closest('[data-add-to-set]'); if (ats) { addToSetModal(ats.dataset.addToSet); return; }
+    const cs = e.target.closest('[data-copy-set],[data-copy-step]');
+    if (cs) {
+      let txt = '';
+      if (cs.dataset.copySet) { const x = byId(S.cmdSets, cs.dataset.copySet); if (!x) return; txt = setScript(x); }
+      else { const [sid, i] = cs.dataset.copyStep.split('|'); const x = byId(S.cmdSets, sid); if (!x) return; txt = stepOf(x.items[+i], x.team).cmd; }
+      const old = cs.textContent; try { await navigator.clipboard.writeText(txt); cs.textContent = '복사됨'; setTimeout(() => { cs.textContent = old; }, 1500); } catch (err) { toast('복사하지 못했습니다. 명령을 직접 선택해 복사해 주세요.'); }
+      return;
+    }
+    const ss = e.target.closest('[data-save-set]');
+    if (ss) { const x = byId(S.cmdSets, ss.dataset.saveSet); if (!x || !downloads) return; try { await downloads.save({ filename: (x.name.replace(/[^\w가-힣-]+/g, '_') || 'commands') + '.sh', data: '#!/bin/bash\n' + setScript(x) }); } catch (err) { if (!err || err.code !== 'declined') toast('파일로 저장하지 못했습니다.'); } return; }
     const ec = e.target.closest('[data-edit-cmd]');
     if (ec) { cmdModal(byId(S.commands, ec.dataset.editCmd)); return; }
     const gc = e.target.closest('[data-goto-cmd]');
@@ -1038,6 +1135,7 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
     if (act === 'newattempt') attemptModal(el.dataset.task || (view() === 'task' ? location.hash.slice(6) : null));
     if (act === 'newlog') logModal(el.dataset.task || null);
     if (act === 'newcmd') cmdModal(null);
+    if (act === 'newset') setModal(null);
     if (act === 'newnote') { await flushNote(); const ref = db.collection('notes').doc(); const ok = await write(() => ref.set({ title: '새 노트', body: '', team: S.team === 'all' ? '공통' : S.team, pinned: false, author: S.me || null, createdAt: new Date().toISOString(), ...stamp() })); if (ok) { S.noteId = ref.id; render(true); setTimeout(() => { const t = $('#noteTitle'); if (t) { t.focus(); t.select(); } }, 60); } }
     if (act === 'newcode') codeModal(el.dataset.task || (view() === 'task' ? location.hash.slice(6) : null));
     if (act === 'newtask') taskModal();
