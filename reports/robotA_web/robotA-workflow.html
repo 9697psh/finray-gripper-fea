@@ -180,6 +180,28 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
 .partnav button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
 .nsbox { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; font-size: 12.5px; }
 .nsbox input { width: 120px; }
+.notes2 { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); align-items: start; }
+@media (max-width: 900px) { .notes2 { grid-template-columns: 1fr; } }
+.todoadd { display: grid; gap: 6px; grid-template-columns: minmax(0, 1fr) 82px; }
+.todoadd .more { grid-column: 1 / -1; display: grid; gap: 6px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 500px) { .todoadd .more { grid-template-columns: 1fr 1fr; } }
+.todo { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 8px; align-items: start; padding: 7px 4px; border-bottom: 1px solid var(--line); }
+.todo:last-child { border-bottom: 0; }
+.todo input[type=checkbox] { width: 18px; height: 18px; margin-top: 4px; accent-color: var(--accent); }
+.todo .txt { border-color: transparent; background: transparent; padding: 3px 6px; font-size: 13.5px; }
+.todo .txt:hover, .todo .txt:focus { border-color: var(--line); background: var(--panel); }
+.todo.done .txt { text-decoration: line-through; color: var(--muted); }
+.todo .meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: 11.5px; color: var(--muted); padding-left: 6px; }
+.todo .late { color: var(--bad); font-weight: 600; }
+.notelist { display: grid; gap: 4px; max-height: 260px; overflow-y: auto; }
+.notelist button { all: unset; cursor: pointer; display: grid; gap: 2px; padding: 7px 9px; border-radius: 7px; border: 1px solid transparent; }
+.notelist button:hover { background: var(--panel-2); }
+.notelist button[aria-current="true"] { background: var(--accent-soft); border-color: var(--accent); }
+.notelist button:focus-visible { outline: 2px solid var(--accent); }
+.notelist b { font-size: 13.5px; } .notelist span { font-size: 11.5px; color: var(--muted); }
+#noteBody { min-height: 340px; font-size: 14px; line-height: 1.65; }
+#noteTitle { font-size: 16px; font-weight: 700; }
+.savestate { font-size: 12px; color: var(--muted); }
 .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .toolbar input, .toolbar select { width: auto; max-width: 100%; }
 .toolbar > span.row { min-width: 0; max-width: 100%; flex: 1 1 260px; justify-content: flex-end; }
@@ -196,6 +218,7 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
   <nav class="tabs" aria-label="화면">
     <a href="#overview" data-v="overview">현황</a>
     <a href="#schedule" data-v="schedule">일정</a>
+    <a href="#notes" data-v="notes">할 일·노트</a>
     <a href="#links" data-v="links">A·B 연동</a>
     <a href="#refs" data-v="refs">참고 코드</a>
     <a href="#code" data-v="code">사용 코드</a>
@@ -238,7 +261,7 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
   const nextMilestone = () => MILESTONES.find(m => new Date(m.at) > Date.now());
 
   // ---------- state ----------
-  const S = { tasks: [], refs: [], attempts: [], logs: [], media: [], interfaces: [], code: [], commands: [], settings: [], loaded: {}, team: (() => { try { return localStorage.getItem('team') || 'all'; } catch (e) { return 'all'; } })(), me: null, canWrite: null, readOnly: false, names: {} };
+  const S = { tasks: [], refs: [], attempts: [], logs: [], media: [], interfaces: [], code: [], commands: [], settings: [], todos: [], notes: [], loaded: {}, team: (() => { try { return localStorage.getItem('team') || 'all'; } catch (e) { return 'all'; } })(), me: null, canWrite: null, readOnly: false, names: {} };
   let db = null, user = null, assets = null, downloads = null, room = null;
 
   // ---------- helpers ----------
@@ -301,8 +324,8 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
   const stamp = () => ({ updatedAt: new Date().toISOString(), updatedBy: S.me || null });
 
   // ---------- views ----------
-  function view() { const h = location.hash.replace('#', ''); if (h.startsWith('task-')) return 'task'; return ['overview', 'schedule', 'links', 'refs', 'code', 'cmds', 'attempts', 'logs', 'deck'].includes(h) ? h : 'overview'; }
-  function editingInApp() { const a = document.activeElement; return a && $('#app').contains(a) && /INPUT|TEXTAREA|SELECT/.test(a.tagName); }
+  function view() { const h = location.hash.replace('#', ''); if (h.startsWith('task-')) return 'task'; return ['overview', 'schedule', 'notes', 'links', 'refs', 'code', 'cmds', 'attempts', 'logs', 'deck'].includes(h) ? h : 'overview'; }
+  function editingInApp() { const a = document.activeElement; return !!(a && $('#app').contains(a) && (a.tagName === 'TEXTAREA' || (a.tagName === 'INPUT' && !/^(checkbox|radio|button|submit|file)$/.test(a.type)))); }
   function render(force) {
     if (!force && editingInApp()) { S.pendingRender = true; return; }
     S.pendingRender = false;
@@ -315,12 +338,12 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
     if (!db && S.dbChecked) pre = '<div class="notice warn">공유 저장소를 쓸 수 없는 화면입니다(로그인하지 않았거나 권한이 없음). 기록 보기·저장이 막혀 있습니다.</div>';
     else if (S.timedOut && !ready) pre = '<div class="notice warn">저장소 응답이 늦습니다. 잠시 후 자동으로 채워집니다.</div>';
     else if (S.readOnly) pre = '<div class="notice">보기 전용입니다. 기록을 남기려면 공유 설정에서 참여자(Contributor) 이상 권한을 받아야 합니다.</div>';
-    const body = { overview: vOverview, schedule: vSchedule, links: vLinks, refs: vRefs, code: vCode, cmds: vCmds, attempts: vAttempts, logs: vLogs, deck: vDeck, task: vOverview }[v === 'task' ? (lastView || 'overview') : v]();
+    const body = { overview: vOverview, schedule: vSchedule, notes: vNotes, links: vLinks, refs: vRefs, code: vCode, cmds: vCmds, attempts: vAttempts, logs: vLogs, deck: vDeck, task: vOverview }[v === 'task' ? (lastView || 'overview') : v]();
     app.innerHTML = pre + body;
     if (v === 'task') openTask(location.hash.slice(6)); else closeSheet();
   }
   let lastView = 'overview';
-  const COLLS = ['tasks', 'refs', 'attempts', 'logs', 'media', 'interfaces', 'code', 'commands', 'settings'];
+  const COLLS = ['tasks', 'refs', 'attempts', 'logs', 'media', 'interfaces', 'code', 'commands', 'settings', 'todos', 'notes'];
 
   function vOverview() {
     const T = teamTasks();
@@ -338,6 +361,8 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
     const feed = [...S.tasks.filter(t => t.updatedAt && t.updatedBy).map(t => ({ at: t.updatedAt, who: t.updatedBy, t, txt: `작업 수정: ${t.title}` })),
       ...S.attempts.map(a => ({ at: a.updatedAt || a.createdAt, who: a.updatedBy || a.author, t: byId(S.tasks, a.taskId), txt: `시도 ${a.result}: ${a.title}` })),
       ...S.logs.map(l => ({ at: l.createdAt, who: l.author, t: byId(S.tasks, l.taskId), txt: `로그 ${l.result}: ${l.command || ''}` })),
+      ...S.todos.map(x => ({ at: x.doneAt || x.updatedAt || x.createdAt, who: x.doneBy || x.updatedBy || x.author, t: x.team === 'A' || x.team === 'B' ? { team: x.team } : null, txt: `할 일 ${x.done ? '완료' : '추가'}: ${x.text}` })),
+      ...S.notes.map(n => ({ at: n.updatedAt || n.createdAt, who: n.updatedBy || n.author, t: n.team === 'A' || n.team === 'B' ? { team: n.team } : null, txt: `노트 수정: ${n.title || '(제목 없음)'}` })),
       ...S.code.map(c => ({ at: c.updatedAt || c.createdAt, who: c.updatedBy || c.author, t: byId(S.tasks, c.taskId), txt: `사용 코드 ${c.status || ''}: ${c.name || c.path || ''}` })),
       ...S.interfaces.filter(l => l.updatedAt).map(l => ({ at: l.updatedAt, who: l.updatedBy, t: null, txt: `연동 '${l.name}' → ${l.status}` }))]
       .filter(x => x.at && (!x.t || inTeam(x.t))).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 8);
@@ -352,6 +377,7 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
       <div class="panel grid" style="gap:10px"><h2>과정 일정 <span class="small muted">Notion 과정 안내 기준</span></h2><dl class="ms">${MILESTONES.map(m => `<dt>${esc(m.label)}</dt><dd class="${m.hot ? 'hot' : ''} ${new Date(m.at) < Date.now() ? 'muted' : ''}">${esc(m.text)}</dd>`).join('')}</dl></div>
       <div class="panel grid" style="gap:10px"><h2>최근 활동 <span class="small muted">모든 팀원의 수정이 바로 보입니다</span></h2>${feed.length ? `<div class="list">${feed.map(x => `<div class="row small">${x.t ? badge(x.t) : '<span class="tag">연동</span>'}<span>${esc(x.txt)}</span><span class="muted" style="margin-left:auto">${esc(authorName(x.who))} · ${fmtTime(x.at)}</span></div>`).join('')}</div>` : '<div class="empty">아직 활동이 없습니다.</div>'}</div>
     </section>
+    ${(() => { const ot = S.todos.filter(todoTeamOk).filter(x => !x.done).sort(todoSort); return `<section class="panel grid" style="gap:8px"><div class="row"><h2>남은 할 일 ${ot.length}</h2><a href="#notes" class="small" style="margin-left:auto">할 일·노트 열기</a></div>${ot.length ? `<div>${ot.slice(0, 5).map(todoRow).join('')}</div>` : '<div class="empty">남은 할 일이 없습니다.</div>'}</section>`; })()}
     <section class="panel grid" style="gap:12px"><div class="row"><h2>단계별 진행</h2></div><div class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">${phase}</div></section>
     <section class="panel grid" style="gap:12px"><div class="row"><h2>흐름도 차트별 진행</h2><span class="small muted">각 팀 흐름도(전체, ①~⑥)와 작업을 연결한 진행률</span></div>${teams.map(flowFor).join('')}</section>
     <section class="grid g2">
@@ -392,6 +418,44 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
       <span style="margin-left:auto" class="row">${can ? '<button data-act="newtask">작업 추가</button>' : ''}</span></div>
       <div class="sched"><table><thead><tr><th rowspan="2">구분</th><th rowspan="2">세부항목</th><th rowspan="2" class="own">담당자</th><th rowspan="2" class="own">진행 상황</th>${head1}</tr><tr>${head2}</tr></thead><tbody>${rows.join('')}</tbody></table></div>
     </section>`;
+  }
+
+  const todoTeamOk = x => S.team === 'all' || x.team === '공통' || x.team === S.team;
+  const todayKST = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+  function todoSort(a, b) { return (a.due || '9999').localeCompare(b.due || '9999') || (a.createdAt || '').localeCompare(b.createdAt || ''); }
+  function todoRow(x) {
+    const can = db && !S.readOnly, t = byId(S.tasks, x.taskId), late = !x.done && x.due && x.due < todayKST();
+    return `<div class="todo ${x.done ? 'done' : ''}"><input type="checkbox" data-todo-done="${esc(x.id)}" ${x.done ? 'checked' : ''} ${can ? '' : 'disabled'} aria-label="완료 표시">
+      <div style="min-width:0">${can ? `<input class="txt" data-todo-text="${esc(x.id)}" value="${esc(x.text)}" aria-label="할 일">` : `<div class="txt">${esc(x.text)}</div>`}
+        <div class="meta">${x.team === '공통' ? '<span class="tag">공통</span>' : badge({ team: x.team })}${x.who ? `<span>${esc(x.who)}</span>` : ''}${x.due ? `<span class="${late ? 'late' : ''}">${late ? '기한 지남 · ' : ''}${esc(x.due.slice(5).replace('-', '/'))}</span>` : ''}${t ? `<button class="ghost small" data-open="${esc(t.id)}">${esc(t.title.length > 16 ? t.title.slice(0, 16) + '…' : t.title)}</button>` : ''}${x.done && x.doneBy ? `<span>✓ ${esc(authorName(x.doneBy))}</span>` : ''}</div></div>
+      ${can ? `<button class="ghost small" data-todo-del="${esc(x.id)}" aria-label="삭제">삭제</button>` : '<span></span>'}</div>`;
+  }
+  function vNotes() {
+    const can = db && !S.readOnly;
+    const T = S.todos.filter(todoTeamOk), open = T.filter(x => !x.done).sort(todoSort), done = T.filter(x => x.done).sort((a, b) => (b.doneAt || '').localeCompare(a.doneAt || ''));
+    const N = S.notes.filter(todoTeamOk).sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || (b.updatedAt || b.createdAt || '').localeCompare(a.updatedAt || a.createdAt || ''));
+    if (!S.noteId || !N.some(n => n.id === S.noteId)) S.noteId = N.length ? N[0].id : null;
+    const n = byId(S.notes, S.noteId);
+    const defTeam = S.team === 'all' ? '공통' : S.team;
+    return `<section class="grid" style="gap:12px"><div class="toolbar"><h2>할 일 · 노트</h2><span class="small muted">두 팀이 함께 쓰는 할 일 목록과 메모장입니다. 고친 내용은 모든 팀원 화면에 바로 반영됩니다.</span></div>
+    <div class="notes2">
+      <div class="panel grid" style="gap:10px"><div class="row"><h3>할 일</h3><span class="small muted">남은 ${open.length} · 완료 ${done.length}</span></div>
+        ${can ? `<form class="todoadd" id="todoForm" novalidate><input id="todoText" placeholder="할 일을 적고 Enter (예: 비전 팀과 결과 토픽 이름 정하기)" aria-label="새 할 일"><button class="primary" type="submit">추가</button>
+          <div class="more"><select id="todoTeam" aria-label="팀">${['공통', 'A', 'B'].map(x => `<option ${x === defTeam ? 'selected' : ''}>${x}</option>`).join('')}</select><input id="todoWho" placeholder="담당 (선택)" aria-label="담당"><input id="todoDue" type="date" aria-label="기한"></div></form>` : ''}
+        ${open.length ? `<div>${open.map(todoRow).join('')}</div>` : '<div class="empty">남은 할 일이 없습니다.</div>'}
+        ${done.length ? `<details><summary class="small">완료한 일 ${done.length}개</summary><div>${done.map(todoRow).join('')}</div></details>` : ''}
+      </div>
+      <div class="panel grid" style="gap:10px"><div class="row"><h3>노트</h3>${can ? `<button style="margin-left:auto" class="primary" data-act="newnote">새 노트</button>` : ''}</div>
+        ${N.length ? `<div class="notelist" role="list">${N.map(x => `<button role="listitem" data-note="${esc(x.id)}" aria-current="${x.id === S.noteId}"><b>${x.pinned ? '📌 ' : ''}${esc(x.title || '(제목 없음)')}</b><span>${[x.team === '공통' ? '공통' : '로봇 ' + esc(x.team), esc(authorName(x.updatedBy || x.author)), fmtTime(x.updatedAt || x.createdAt)].filter(Boolean).join(' · ')}</span></button>`).join('')}</div>` : '<div class="empty">아직 노트가 없습니다. 회의 메모, 오류 해결 방법, 발표 준비 메모를 남겨 두세요.</div>'}
+        ${n ? `<div class="grid" style="gap:8px;border-top:1px solid var(--line);padding-top:10px">
+          <input id="noteTitle" value="${esc(n.title || '')}" placeholder="노트 제목" ${can ? '' : 'disabled'} aria-label="노트 제목">
+          <div class="row"><select id="noteTeam" style="width:auto" ${can ? '' : 'disabled'} aria-label="팀">${['공통', 'A', 'B'].map(x => `<option ${n.team === x ? 'selected' : ''}>${x}</option>`).join('')}</select>
+            <label class="row" style="display:flex;gap:6px;align-items:center;color:var(--fg)"><input type="checkbox" id="notePin" style="width:auto" ${n.pinned ? 'checked' : ''} ${can ? '' : 'disabled'}> 위에 고정</label>
+            <span class="savestate" id="saveState">${n.updatedAt ? `마지막 저장 ${fmtTime(n.updatedAt)}${n.updatedBy ? ' · ' + esc(authorName(n.updatedBy)) : ''}` : ''}</span>
+            ${can ? `<button class="ghost small" style="margin-left:auto" data-note-del="${esc(n.id)}">노트 삭제</button>` : ''}</div>
+          <textarea id="noteBody" placeholder="자유롭게 적으세요. 입력을 멈추면 자동으로 저장됩니다." ${can ? '' : 'disabled'} aria-label="노트 내용">${esc(n.body || '')}</textarea></div>` : ''}
+      </div>
+    </div></section>`;
   }
 
   function vLinks() {
@@ -637,6 +701,7 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
       ${editable ? `<div class="row"><button class="primary" data-save-task="${esc(t.id)}">저장</button><span class="small muted">${t.updatedAt ? `마지막 수정 ${fmtTime(t.updatedAt)} · ${esc(authorName(t.updatedBy))}` : ''}</span></div>` : ''}
       <div class="panel grid" style="gap:6px"><h3>일정</h3><div class="row">${slots || '<span class="muted small">잡힌 칸 없음</span>'}</div></div>
       <div class="panel grid" style="gap:8px"><h3>참고할 코드</h3>${refs.length ? refs.map(r => `<div class="item"><header><b>${esc(r.title)}</b>${r.path ? `<a class="path" href="${esc(r.url || REPO + r.path)}" target="_blank" rel="noopener">${esc(r.path)}</a>` : ''}</header><div class="small"><span class="muted">그대로 쓰면 </span>${esc(r.limits || '')}</div></div>`).join('') : '<span class="small muted">연결된 참고 코드가 없습니다.</span>'}</div>
+      ${S.todos.some(x => x.taskId === id) ? `<div class="panel grid" style="gap:6px"><h3>할 일</h3><div>${S.todos.filter(x => x.taskId === id).sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0) || todoSort(a, b)).map(todoRow).join('')}</div></div>` : ''}
       ${S.commands.some(k => (k.taskIds || []).includes(id)) ? `<div class="panel grid" style="gap:8px"><h3>관련 명령어</h3><div class="cards">${S.commands.filter(k => (k.taskIds || []).includes(id)).sort((a, b) => (a.order || 0) - (b.order || 0)).map(cmdCard).join('')}</div></div>` : ''}
       <div class="panel grid" style="gap:8px"><div class="row"><h3>사용 코드 ${S.code.filter(c => c.taskId === id).length}</h3>${editable ? `<button style="margin-left:auto" class="primary" data-act="newcode" data-task="${esc(t.id)}">코드 등록</button>` : ''}</div>${S.code.filter(c => c.taskId === id).length ? S.code.filter(c => c.taskId === id).map(codeItem).join('') : '<span class="small muted">아직 등록한 코드가 없습니다.</span>'}</div>
       <div class="panel grid" style="gap:8px"><div class="row"><h3>시도 기록 ${atts.length}</h3>${editable ? `<button style="margin-left:auto" class="primary" data-act="newattempt" data-task="${esc(t.id)}">시도 기록</button>` : ''}</div>${atts.length ? atts.map(attemptFull).join('') : '<span class="small muted">아직 없습니다. 어떤 코드로 시도했고 결과가 어땠는지 남겨 주세요.</span>'}</div>
@@ -825,6 +890,12 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
 
   // ---------- events ----------
   document.addEventListener('click', async e => {
+    const nb = e.target.closest('[data-note]');
+    if (nb) { await flushNote(); S.noteId = nb.dataset.note; render(true); return; }
+    const td = e.target.closest('[data-todo-del]');
+    if (td) { if (td.dataset.confirm !== '1') { td.dataset.confirm = '1'; td.textContent = '한 번 더'; setTimeout(() => { td.dataset.confirm = ''; td.textContent = '삭제'; }, 3000); return; } await write(() => db.doc('todos/' + td.dataset.todoDel).delete()); return; }
+    const nd = e.target.closest('[data-note-del]');
+    if (nd) { if (nd.dataset.confirm !== '1') { nd.dataset.confirm = '1'; nd.textContent = '한 번 더 누르면 삭제'; setTimeout(() => { nd.dataset.confirm = ''; nd.textContent = '노트 삭제'; }, 3000); return; } clearTimeout(noteTimer); noteDirty = null; await write(() => db.doc('notes/' + nd.dataset.noteDel).delete(), '노트를 삭제했습니다.'); S.noteId = null; render(true); return; }
     const cp = e.target.closest('[data-copy-cmd]');
     if (cp) { const k = byId(S.commands, cp.dataset.copyCmd); if (!k) return; const txt = fillNs(k.cmd, k.team); try { await navigator.clipboard.writeText(txt); cp.textContent = '복사됨'; setTimeout(() => { cp.textContent = '복사'; }, 1500); } catch (err) { const r = document.createRange(); r.selectNodeContents(cp.parentElement.querySelector('code')); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); toast('선택해 두었습니다. Ctrl+C로 복사하세요.'); } return; }
     const pb = e.target.closest('[data-part]');
@@ -874,6 +945,7 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
     if (act === 'newattempt') attemptModal(el.dataset.task || (view() === 'task' ? location.hash.slice(6) : null));
     if (act === 'newlog') logModal(el.dataset.task || null);
     if (act === 'newcmd') cmdModal(null);
+    if (act === 'newnote') { await flushNote(); const ref = db.collection('notes').doc(); const ok = await write(() => ref.set({ title: '새 노트', body: '', team: S.team === 'all' ? '공통' : S.team, pinned: false, author: S.me || null, createdAt: new Date().toISOString(), ...stamp() })); if (ok) { S.noteId = ref.id; render(true); setTimeout(() => { const t = $('#noteTitle'); if (t) { t.focus(); t.select(); } }, 60); } }
     if (act === 'newcode') codeModal(el.dataset.task || (view() === 'task' ? location.hash.slice(6) : null));
     if (act === 'newtask') taskModal();
     if (act === 'newref') refModal();
@@ -891,6 +963,9 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
     const el = e.target;
     if (el.dataset.status) { await write(() => db.doc('tasks/' + el.dataset.status).update({ status: el.value, ...stamp() })); return; }
     if (el.dataset.owner) { await write(() => db.doc('tasks/' + el.dataset.owner).update({ owner: el.value, ...stamp() })); return; }
+    if (el.dataset.todoDone) { const on = el.checked; await write(() => db.doc('todos/' + el.dataset.todoDone).update(on ? { done: true, doneAt: new Date().toISOString(), doneBy: S.me || null, ...stamp() } : { done: false, doneAt: null, doneBy: null, ...stamp() })); return; }
+    if (el.dataset.todoText) { const v = el.value.trim(); if (v) await write(() => db.doc('todos/' + el.dataset.todoText).update({ text: v, ...stamp() })); return; }
+    if (el.id === 'noteTeam' || el.id === 'notePin') { if (!S.noteId) return; await write(() => db.doc('notes/' + S.noteId).update(el.id === 'noteTeam' ? { team: el.value, ...stamp() } : { pinned: el.checked, ...stamp() })); return; }
     if (el.id === 'nsA' || el.id === 'nsB') { const v = el.value.replace(/^\/?robot/i, '').trim(); const cur = byId(S.settings, 'ns'); const patch = { [el.id === 'nsA' ? 'A' : 'B']: v, ...stamp() }; await write(() => cur ? db.doc('settings/ns').update(patch) : db.doc('settings/ns').set({ A: '', B: '', ...patch }), '로봇 번호를 저장했습니다.'); return; }
     if (el.dataset.link) { const [id, f] = el.dataset.link.split('|'); await write(() => db.doc('interfaces/' + id).update({ [f]: el.value, ...stamp() })); return; }
   });
@@ -901,10 +976,34 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
   });
   let qTimer; document.addEventListener('input', e => { if (e.target.id === 'cmdQ') { clearTimeout(qTimer); const v = e.target.value; qTimer = setTimeout(() => { S.cmdQuery = v; render(true); const i = $('#cmdQ'); if (i) { i.focus(); i.setSelectionRange(v.length, v.length); } }, 250); return; } if (e.target.id === 'codeQ') { clearTimeout(qTimer); const v = e.target.value; qTimer = setTimeout(() => { S.codeQuery = v; render(true); const i = $('#codeQ'); if (i) { i.focus(); i.setSelectionRange(v.length, v.length); } }, 250); return; } if (e.target.id === 'logQ') { clearTimeout(qTimer); const v = e.target.value; qTimer = setTimeout(() => { S.logQuery = v; render(true); const i = $('#logQ'); if (i) { i.focus(); i.setSelectionRange(v.length, v.length); } }, 250); } });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') { const m = document.querySelector('.modal'); if (m) m.parentElement.remove(); else if (view() === 'task') location.hash = lastView; } });
+  document.addEventListener('submit', async e => {
+    if (e.target.id !== 'todoForm') return; e.preventDefault();
+    const txt = $('#todoText').value.trim(); if (!txt) { $('#todoText').focus(); return; }
+    const t = view() === 'task' ? location.hash.slice(6) : null;
+    const ok = await write(() => db.collection('todos').add({ text: txt, team: $('#todoTeam').value, who: $('#todoWho').value.trim(), due: $('#todoDue').value || '', taskId: t, done: false, author: S.me || null, createdAt: new Date().toISOString(), ...stamp() }));
+    if (ok) { render(true); const i = $('#todoText'); if (i) { i.value = ''; i.focus(); } }
+  });
+  let noteTimer = null, noteDirty = null;
+  async function flushNote() {
+    clearTimeout(noteTimer);
+    if (!noteDirty) return; const { id, patch } = noteDirty; noteDirty = null;
+    const st = $('#saveState'); if (st) st.textContent = '저장 중…';
+    const ok = await write(() => db.doc('notes/' + id).update({ ...patch, ...stamp() }));
+    const st2 = $('#saveState'); if (st2) st2.textContent = ok ? '저장됨' : '저장하지 못했습니다';
+  }
+  document.addEventListener('input', e => {
+    if (e.target.id !== 'noteBody' && e.target.id !== 'noteTitle') return;
+    if (!S.noteId || S.readOnly || !db) return;
+    noteDirty = { id: S.noteId, patch: { ...(noteDirty && noteDirty.id === S.noteId ? noteDirty.patch : {}), [e.target.id === 'noteBody' ? 'body' : 'title']: e.target.id === 'noteBody' ? e.target.value.slice(0, 60000) : e.target.value } };
+    const st = $('#saveState'); if (st) st.textContent = '입력 중…';
+    clearTimeout(noteTimer); noteTimer = setTimeout(flushNote, 900);
+  });
+  document.addEventListener('focusout', e => { if (e.target.id === 'noteBody' || e.target.id === 'noteTitle') flushNote(); });
+  window.addEventListener('pagehide', () => { flushNote(); });
   window.addEventListener('hashchange', () => { const v = view(); if (v !== 'task') lastView = v; render(true); sharePresence(); });
 
   // ---------- who is here (live presence) ----------
-  const VIEW_NAMES = { overview: '현황', schedule: '일정', links: 'A·B 연동', refs: '참고 코드', code: '사용 코드', cmds: '명령어', attempts: '시도 기록', logs: '실행 로그', deck: '발표 자료' };
+  const VIEW_NAMES = { overview: '현황', schedule: '일정', notes: '할 일·노트', links: 'A·B 연동', refs: '참고 코드', code: '사용 코드', cmds: '명령어', attempts: '시도 기록', logs: '실행 로그', deck: '발표 자료' };
   function sharePresence() {
     if (!room) return;
     const v = view(), t = v === 'task' ? byId(S.tasks, location.hash.slice(6)) : null;
