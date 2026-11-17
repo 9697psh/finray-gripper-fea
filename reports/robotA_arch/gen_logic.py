@@ -91,7 +91,7 @@ O2 = step(840, 990, 280, 100, 'oakd 캡처 실행<br>캡처 후 server에 전송
 text(1140, 990, 360, 60, blue('a_remission / 좌표 / image topic', 15) + '<br>' + blue('└→ (재순찰 파일이라는 뜻)', 13), align='left')
 D3 = dia(380, 980, 260, 110, 'list에 남은<br>좌표?')
 VS = step(680, 755, 470, 70, 'visit subscriber ' + blue('(remission_list에 좌표 저장)', 12) + '<br>' + blue('DB에서 받아오기', 13))
-EN = oval(115, 940, 200, 190, '전 작업 종료 및<br>도킹 스테이션<br>이동')
+EN = oval(115, 940, 200, 190, '현 작업 종료 및<br>도킹 스테이션<br>이동')
 END = text(140, 800, 150, 34, '<b>작업종료</b>', size=17)
 
 edge(FD, P2, 'yes', ex=0, ey=0.5, nx=0, ny=0.5, points=((600, 302), (600, 671)), lx=-0.1)
@@ -105,6 +105,7 @@ edge(O2, D3, f'<span style="color:{BLUE}">server에서 b 방문 좌표</span><br
 edge(D3, VS, '방문한 좌표 remove', ex=0.5, ey=0, nx=0, ny=0.5, points=((510, 790),), lx=0.55, loff=(0, -14))
 edge(D3, EN, 'no', ex=0, ey=0.5, nx=1, ny=0.5, lx=-0.2)
 edge(EN, END, ex=0.5, ey=0, nx=0.5, ny=1)
+edge(VS, P2, '다시 재방문', ex=round((930 - 680) / 470, 4), ey=0, nx=0.5, ny=1, lx=0, loff=(42, 0), font=12)
 text(470, 880, 50, 24, 'yes', size=12)
 
 xml = ('<mxfile host="app.diagrams.net"><diagram id="robotA-logic" name="우리의 로직">'
