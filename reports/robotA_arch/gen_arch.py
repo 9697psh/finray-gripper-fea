@@ -94,7 +94,7 @@ box(40, 18, 760, 30, '<b style="font-size:20px">로봇 A 시스템 설계도</b>
     '<span style="font-size:13px;color:#555">  TurtleBot4 · ROS 2 Jazzy · namespace /robot&lt;n&gt;</span>', TEXT)
 for i, (col, dsh, wd, txt) in enumerate([(RED, False, 2, '외부 → PC (입력)'), (BLUE, False, 2, 'PC → 외부 (출력)'),
                                          (INK, False, 2, 'PC 내부 흐름'), (NAV_C, False, 3, 'Nav2 이동 요청 (goal ↔ result)'),
-                                         (RED, True, 2, '점선 = 서버(SM)와 주고받음'), (GREY, True, 2, '선택 · 미사용')]):
+                                         (RED, True, 2, '점선 = SERVER와 주고받음'), (GREY, True, 2, '선택 · 미사용')]):
     x = 900 + (i % 3) * 270
     y = 20 + (i // 3) * 24
     edge(None, None, color=col, dashed=dsh, spt=(x, y + 8), tpt=(x + 44, y + 8), width=wd)
@@ -125,7 +125,7 @@ SM = box(40, 850, 220, 620, t('SERVER', '', '작업 지시', '결과 저장', '�
 edge(SM, MON, '전달', color=RED, dashed=True, ex=0.5, ey=0, nx=0.5, ny=1, font=10)
 
 # ---------- PC ----------
-box(360, 80, 1320, 1530, 'PC  (원격 PC · ROS 2 Jazzy)',
+box(360, 80, 1320, 1780, 'PC  (원격 PC · ROS 2 Jazzy)',
     S(rounded=1, whiteSpace='wrap', html=1, fillColor='none', strokeColor=INK, strokeWidth=2.5, fontSize=17,
       fontStyle=1, fontColor=INK, align='left', verticalAlign='top', spacingLeft=14, spacingTop=6, arcSize=2))
 
@@ -167,80 +167,111 @@ edge(BEH, VEL, color=INK, dashed=True, ex=0, ey=0.5, nx=1, ny=0.8, points=((900,
 edge(VEL, COLL, color=INK, ex=0, ey=0.4, nx=1, ny=0.4, width=1.5)
 edge(WPF, BT, label='', color=INK, ex=0, ey=0.5, nx=1, ny=round((520 - 412) / 264, 4), width=1.5)
 
-# separator (dashed) like the sketch
-edge(None, None, color='#777777', dashed=True, end='none', width=1.5, spt=(400, 780), tpt=(1640, 780))
-
-# Our logic — the team's flowchart; every step is wired to the Nav2 / Bot / SM item it talks to
-LG_Y, LG_H = 800, 760
-LOGIC = box(400, LG_Y, 1240, LG_H, '우리의 로직  <span style="font-weight:normal;font-size:12px">Robot A 미션 흐름</span>',
+# Our logic — ① 탐색 (patrol) and ② 재탐색 (re-patrol) from the team's hand-drawn flowcharts; each step is tagged with what it talks to
+LOGIC = box(400, 800, 1240, 1030, '우리의 로직  <span style="font-weight:normal;font-size:12px">Robot A 미션 흐름 · ① 탐색 → ② 재탐색</span>',
             group(OUR_C, OUR_F, align='right').replace('verticalAlign=top', 'verticalAlign=bottom').replace('spacingTop=4', 'spacingBottom=6'))
-STP = node(OUR_C, '#FFFFFF', fs=12)
-def step(x, y, w, h, html): return box(x, y, w, h, html, STP)
-def dec(x, y, w, h, html):
-    return box(x, y, w, h, html, 'rhombus;' + S(whiteSpace='wrap', html=1, fillColor='#FFFFFF', strokeColor=OUR_C,
-                                                strokeWidth=1.5, fontSize=11, fontColor='#1A1A1A'))
-def go(a, b, label='', **kw):
-    kw.setdefault('width', 1.4)
-    return edge(a, b, label=label, color=kw.pop('color', '#444444'), **kw)
-HL = lambda t_: f'<span style="background-color:#FFF176">&nbsp;{t_}&nbsp;</span>'
-NAVL = dict(color=NAV_C, width=2.5, font=11, both=True)
+G_, R_, B_, K_ = NAV_C, RED, BLUE, '#666666'
+def tg(txt, col): return f'<br><span style="font-size:9.5px;color:{col}">{txt}</span>'
+def st(x, y, w, h, title, *tags, col=OUR_C, fill='#FFFFFF'):
+    return box(x, y, w, h, f'<b>{title}</b>' + ''.join(tg(a_, c_) for a_, c_ in tags),
+               S(rounded=1, whiteSpace='wrap', html=1, fillColor=fill, strokeColor=col, strokeWidth=1.5, fontSize=11, fontColor='#1A1A1A', arcSize=12))
+def dc(x, y, w, h, title, *tags):
+    return box(x, y, w, h, title + ''.join(tg(a_, c_) for a_, c_ in tags),
+               'rhombus;' + S(whiteSpace='wrap', html=1, fillColor='#FFFFFF', strokeColor=OUR_C, strokeWidth=1.5, fontSize=10.5, fontColor='#1A1A1A'))
+def cc(x, y, txt):
+    return box(x, y, 30, 30, f'<b>{txt}</b>', 'ellipse;' + S(whiteSpace='wrap', html=1, fillColor='#EDE7F6', strokeColor=OUR_C, strokeWidth=1.3, fontSize=12, fontColor=OUR_C))
+def lb(x, y, w, txt, size=12, col=OUR_C):
+    return box(x, y, w, 18, txt, TEXT.replace('fontSize=12', f'fontSize={size}') + f'fontColor={col};')
+def go(a_, b_, label='', **kw):
+    kw.setdefault('width', 1.4); kw.setdefault('font', 9.5)
+    return edge(a_, b_, label=label, color=kw.pop('color', '#444444'), **kw)
 
-# row A — start & patrol entry
-S0 = box(430, 850, 140, 60, '<b>작업 시작</b>', 'ellipse;' + S(whiteSpace='wrap', html=1, fillColor='#FFFFFF', strokeColor=RED,
-                                                                strokeWidth=1.8, fontSize=13, fontColor=RED))
-D0 = dec(610, 835, 160, 90, '<b>is initial pose<br>&amp; docked?</b>')
-U0 = step(810, 857, 140, 46, '<b>언도킹</b>')
-P1 = step(990, 850, 220, 60, HL('<b>순찰 자율주행</b>') + '<br><span style="font-size:11px">좌표 1,2,3,4 (i = 1부터)</span>')
-M1 = step(1290, 857, 160, 46, '<b>좌표 i로 이동</b>')
-# row B
-D1 = dec(1280, 965, 180, 90, 'i 이동 완료?')
-T1 = step(1140, 989, 110, 42, 'TB4 stop')
-O1 = step(840, 975, 260, 70, HL('<b>oakd 캡처 실행</b>') + '<br>토마토 캡처 후 server에 전송')
-FD = dec(620, 960, 170, 100, 'i = final<br>sector?')
-# row C
-VS = step(420, 1118, 180, 64, '<b>visit subscriber</b><br><span style="font-size:11px">remission_list에 좌표 저장</span>')
-P2 = step(640, 1115, 240, 70, HL('<b>재방문 순찰 자율주행</b>') + '<br><span style="font-size:11px">(b에게서 방문한 좌표 수신)</span>')
-M2 = step(1290, 1127, 160, 46, '<b>남은 좌표로 이동</b>')
-# row D
-D2 = dec(1280, 1245, 180, 90, 'list 좌표<br>이동 완료?')
-T2 = step(1140, 1269, 110, 42, 'TB4 stop')
-O2 = step(860, 1255, 240, 70, '<b>oakd 캡처 실행</b><br>캡처 후 server에 전송')
-D3 = dec(620, 1240, 170, 100, 'list에 남은<br>좌표?')
-# row E
-WT = step(410, 1392, 170, 46, '잠시 대기 후<br>다시 확인')
-BW = dec(620, 1370, 170, 90, 'B 작업<br>끝났나?')
-EN = step(840, 1385, 220, 60, '<b>현 작업 종료 및</b><br><b>도킹 스테이션 이동</b>')
-END = box(880, 1478, 140, 28, '<b>작업종료</b>', TEXT.replace('align=left', 'align=center').replace('fontSize=12', 'fontSize=14'))
-SAFE = box(420, 1470, 420, 72, '<b>상시 감시 (전 과정)</b><br>배터리 부족 → 도킹 복귀 · 비상정지 → 즉시 정지<br>통신 3초 끊김 → 정지',
-    node('#B58A00', '#FFFBEA', fs=11))
+# ---------- ① 탐색 ----------
+lb(430, 806, 400, '<b>① 탐색</b>  <span style="font-size:11px;color:#666">순찰 명령 · 섹터 A1 → A4</span>', size=13)
+P0 = st(430, 845, 140, 50, '명령 확인', ('← SERVER: 작업 명령', R_))
+P1 = dc(605, 835, 140, 70, '<b>docking?</b>', ('dock_status', R_))
+P2 = st(780, 845, 140, 50, 'undock', ('→ Bot: /undock', B_))
+P3 = st(960, 845, 140, 50, '순찰 실행', ('섹터 좌표 목록', K_), col='#C0392B')
+P4 = st(430, 965, 150, 50, '순찰 좌표로 이동', ('→ Nav2: goal', G_))
+P5 = dc(615, 955, 140, 70, '지정된 좌표<br>도착?')
+P6 = st(790, 963, 150, 54, '정지 후 사진 캡처', ('← Bot: 카메라 · 352×352', R_))
+P7 = st(975, 960, 190, 60, '이미지 · 위치 · 섹터 · 시각<br>서버에 전송', ('→ SERVER', B_))
+P8 = dc(1200, 955, 140, 70, '배터리<br>20% 이하?', ('/battery_state', R_))
+P9 = st(1380, 960, 200, 60, '작업 저장 후 복귀 (도킹)', ('작업 위치 저장', K_), ('→ Nav2 · Bot: /dock', B_))
+P12 = dc(615, 1060, 140, 70, '재탐색<br>3회 초과?')
+P10 = dc(1200, 1060, 140, 70, '섹터 모두<br>방문?')
+P13 = dc(615, 1160, 140, 70, '현재 위치<br>A1?')
+P14 = st(430, 1170, 150, 50, '도킹 위치로 이동', ('(0, 0, 0) · → Nav2', G_))
+P15 = st(790, 1170, 150, 50, '이전 좌표로 이동', ('→ Nav2: goal', G_))
+P11 = st(1195, 1165, 150, 56, 'docking으로 이동', ('→ Nav2 · Bot: /dock', B_))
+C2a = cc(1370, 1178, '②'); lb(1405, 1184, 200, '재순찰 명령 실행', size=11)
+CA1 = cc(1465, 1040, 'A'); lb(1500, 1046, 130, '충전 후 이전 좌표로', size=9.5, col='#666')
+CA2 = cc(955, 1180, 'A')
+CB1 = cc(1465, 915, 'B'); lb(1500, 921, 130, '② 재탐색에서 복귀', size=9.5, col='#666')
 
-# flow
-go(S0, D0); go(D0, U0, 'yes', lx=-0.3); go(U0, P1)
-go(D0, P1, 'no (바로 출발)', ex=0.5, ey=1, nx=0.5, ny=1, points=((690, 940), (1100, 940)), lx=-0.55, font=10)
-go(P1, M1, '<b>nav2</b>', font=11, lbg='#F4A3A3')
-go(M1, D1, ex=0.5, ey=1, nx=0.5, ny=0)
-go(D1, M1, 'no (재확인 ·<br>3회 실패 시 건너뜀)', ex=1, ey=0.5, nx=1, ny=0.5, points=((1490, 1010), (1490, 880)), loff=(48, 0), font=9)
-go(D1, T1, 'yes', lx=-0.2); go(T1, O1); go(O1, FD)
-go(FD, P1, 'no · i = i+1', ex=0.5, ey=0, nx=0.5, ny=1, points=((705, 940), (1100, 940)), lx=0.0, loff=(0, 10), font=10)
-go(FD, P2, 'yes', ex=0.5, ey=1, nx=round((705 - 640) / 240, 4), ny=0, lx=-0.2)
-go(VS, P2, '다시<br>재방문', font=10)
-go(P2, M2, '<b>nav2</b>', font=11, lbg='#F4A3A3')
-go(M2, D2, ex=0.5, ey=1, nx=0.5, ny=0)
-go(D2, M2, 'no (재확인 ·<br>3회 실패 시 건너뜀)', ex=1, ey=0.5, nx=1, ny=0.75, points=((1490, 1290), (1490, 1162)), loff=(48, 0), font=9)
-go(D2, T2, 'yes', lx=-0.2); go(T2, O2); go(O2, D3)
-go(D3, VS, 'yes · 방문한 좌표 remove<br>(DB에도 반영)', ex=0, ey=0.5, nx=round((510 - 420) / 180, 4), ny=1, points=((510, 1290),), lx=-0.45, loff=(0, 0), font=9)
-go(D3, BW, 'no', ex=0.5, ey=1, nx=0.5, ny=0, lx=-0.2)
-go(BW, EN, 'yes', lx=-0.2)
-go(BW, WT, 'no', lx=-0.2)
-go(WT, D3, '', ex=round((495 - 410) / 170, 4), ey=0, nx=0.25, ny=0.75, points=((495, 1315),))
-go(EN, END, ex=round((950 - 840) / 220, 4), ey=1, nx=0.5, ny=0)
+go(P0, P1); go(P1, P2, 'yes', lx=-0.3); go(P2, P3)
+go(P1, P3, 'no', ex=0.5, ey=0, nx=0.5, ny=0, points=((675, 822), (1030, 822)), lx=-0.85)
+go(P3, P4, ex=0.5, ey=1, nx=0.5, ny=0, points=((1030, 928), (505, 928)))
+go(P4, P5); go(P5, P6, 'yes', lx=-0.3); go(P6, P7); go(P7, P8); go(P8, P9, 'yes', lx=-0.3)
+go(P5, P12, 'no', ex=0.5, ey=1, nx=0.5, ny=0, lx=-0.3)
+go(P12, P4, 'no', ex=0, ey=0.5, nx=round((545 - 430) / 150, 4), ny=1, points=((545, 1095),), lx=-0.5)
+go(P12, P13, 'yes', ex=0.5, ey=1, nx=0.5, ny=0, lx=-0.3)
+go(P13, P14, 'yes', lx=-0.2)
+go(P14, P4, ex=round((480 - 430) / 150, 4), ey=0, nx=round((480 - 430) / 150, 4), ny=1)
+go(P13, P15, 'no', lx=-0.2)
+go(P15, P4, ex=0.5, ey=1, nx=0, ny=0.5, points=((865, 1260), (415, 1260), (415, 990)))
+go(P8, P10, 'no', ex=0.5, ey=1, nx=0.5, ny=0, lx=-0.3)
+go(P10, P4, 'no · 다음 섹터', ex=1, ey=0.5, nx=0, ny=0.5, points=((1600, 1095), (1600, 1260), (415, 1260), (415, 990)), lx=-0.78)
+go(P10, P11, 'yes', ex=0.5, ey=1, nx=0.5, ny=0, lx=-0.3)
+go(P11, C2a)
+go(P9, CA1, ex=round((1480 - 1380) / 200, 4), ey=1, nx=0.5, ny=0)
+go(CA2, P15, ex=0, ey=0.5, nx=1, ny=0.5)
+go(CB1, P9, ex=0.5, ey=1, nx=0.5, ny=0)
 
-# logic <-> Nav2 (bt_navigator): each move step individually
-edge(M1, BT, 'goal ↔ result', ex=round((1330 - 1290) / 160, 4), ey=0, nx=round((1330 - 1265) / 170, 4), ny=1, loff=(-42, 0), **NAVL)
-edge(M2, BT, 'goal ↔ result', ex=1, ey=0.25, nx=round((1390 - 1265) / 170, 4), ny=1, points=((1520, 1138), (1520, 790), (1390, 790)),
-     lx=-0.35, loff=(40, 0), **NAVL)
-edge(EN, BT, '도킹 위치 goal ↔ result', ex=1, ey=0.2, nx=round((1420 - 1265) / 170, 4), ny=1,
-     points=((1545, 1397), (1545, 775), (1420, 775)), lx=-0.75, loff=(0, -10), **NAVL)
+# ---------- ② 재탐색 ----------
+edge(None, None, color='#B9A9D9', dashed=True, end='none', width=1.2, spt=(410, 1288), tpt=(1630, 1288))
+lb(520, 1300, 520, '<b>② 재탐색</b>  <span style="font-size:11px;color:#666">재순찰 명령 실행 · SERVER가 보낸 B 순찰 구역</span>', size=13)
+C2b = cc(485, 1300, '②')
+R0 = dc(430, 1355, 140, 70, '받은 데이터<br>있음?', ('← SERVER: B 순찰 구역', R_))
+R2 = st(600, 1365, 170, 50, 'remission_list에<br>재순찰 구역 저장')
+R3 = st(800, 1365, 150, 50, '순찰 좌표로 이동', ('→ Nav2: goal', G_))
+R4 = dc(985, 1355, 130, 70, '좌표 도착?')
+R5 = st(1145, 1360, 170, 60, '정지 후 사진 캡처', ('← Bot: 카메라', R_), ('list에서 방문 위치 업데이트', K_))
+R6 = st(1345, 1360, 210, 60, '이미지 · 위치 · 섹터 · 시각<br>서버에 전송', ('→ SERVER', B_))
+R1 = st(430, 1470, 150, 50, 'docking station<br>이동 · 대기', ('→ Nav2 · Bot: /dock', B_))
+R11 = dc(985, 1460, 130, 70, '재탐색<br>3회 초과?')
+R7 = dc(1380, 1460, 140, 70, '배터리<br>20% 이하?', ('/battery_state', R_))
+CB2 = cc(1540, 1480, 'B')
+R13 = st(800, 1580, 150, 50, '전 위치로 이동', ('→ Nav2: goal', G_))
+R12 = dc(985, 1570, 130, 70, '현 위치<br>A1?')
+R8 = dc(1380, 1570, 140, 70, 'remission_list에<br>남은 좌표?')
+R10 = dc(1180, 1680, 140, 70, '리스트에<br>좌표 있음?')
+R9 = st(1380, 1690, 150, 50, '30초 동안<br>자리에서 수신 대기', ('← SERVER', R_))
+SAFE = box(430, 1765, 720, 40, '<b>상시 감시 (전 과정)</b>  비상정지 → 즉시 정지 · 통신 3초 끊김 → 정지 · 배터리는 흐름 안에서 확인',
+           node('#B58A00', '#FFFBEA', fs=11))
+
+go(C2b, R0, ex=0.5, ey=1, nx=0.5, ny=0)
+go(R0, R2, 'yes', lx=-0.3); go(R2, R3); go(R3, R4); go(R4, R5, 'yes', lx=-0.3); go(R5, R6)
+go(R0, R1, 'no', ex=0.5, ey=1, nx=0.5, ny=0, lx=-0.3)
+go(R1, R0, '데이터 확인', ex=0, ey=0.5, nx=0, ny=0.5, points=((415, 1495), (415, 1390)), lx=0.0, loff=(-2, 0))
+go(R6, R7, ex=round((1450 - 1345) / 210, 4), ey=1, nx=0.5, ny=0)
+go(R7, CB2, 'yes', ex=1, ey=0.5, nx=0, ny=0.5, lx=-0.2)
+go(R7, R8, 'no', ex=0.5, ey=1, nx=0.5, ny=0, lx=-0.3)
+go(R8, R3, 'yes', ex=1, ey=0.5, nx=0.5, ny=0, points=((1600, 1605), (1600, 1340), (875, 1340)), lx=-0.9)
+go(R8, R9, 'no', ex=0.5, ey=1, nx=round((1450 - 1380) / 150, 4), ny=0, lx=-0.3)
+go(R9, R10)
+go(R10, R8, 'yes', ex=0.5, ey=0, nx=1, ny=0.5, points=((1250, 1550), (1600, 1550), (1600, 1605)), lx=-0.8)
+go(R10, R1, 'no', ex=0, ey=0.5, nx=round((470 - 430) / 150, 4), ny=1, points=((470, 1715),), lx=-0.3)
+go(R4, R11, 'no', ex=0.5, ey=1, nx=0.5, ny=0, lx=-0.3)
+go(R11, R3, 'no', ex=0, ey=0.5, nx=round((915 - 800) / 150, 4), ny=1, points=((915, 1495),), lx=-0.4)
+go(R11, R12, 'yes', ex=0.5, ey=1, nx=0.5, ny=0, lx=-0.3)
+go(R12, R13, 'no', lx=-0.2)
+go(R13, R3, ex=round((850 - 800) / 150, 4), ey=0, nx=round((850 - 800) / 150, 4), ny=1)
+go(R12, R1, 'yes', ex=0.5, ey=1, nx=round((530 - 430) / 150, 4), ny=1, points=((1050, 1660), (530, 1660)), lx=-0.3)
+
+# logic → Nav2: every '→ Nav2' step sends a NavigateToPose goal to bt_navigator
+edge(None, BT, '→ Nav2 단계마다 goal ↔ result<br>(순찰 좌표 · 이전 좌표 · 도킹 위치)', color=NAV_C, width=2.5, font=11, both=True,
+     nx=round((1350 - 1265) / 170, 4), ny=1, spt=(1350, 800), loff=(0, 0))
 
 # localization internals & interplay
 edge(MAP, AMCL, color=INK, ex=0, ey=0.375, nx=1, ny=0.375, width=1.5)
@@ -258,38 +289,29 @@ edge(LID, NAV, '/scan (costmap · collision_monitor)', color=RED, ex=1, ey=ry(19
 edge(C1, NAV, '/odom · TF odom→base_link', color=RED, ex=1, ey=ry(422, 38, 434), nx=0, ny=round((434 - 380) / 380, 4), lx=0.1, loff=(0, -9), font=10)
 edge(COLL, C1, '/cmd_vel', color=BLUE, ex=0, ey=0.5, nx=1, ny=ry(422, 38, 452), points=((408, 585), (408, 452)), lx=0.75, loff=(0, 9), width=2.5, font=11)
 
-# Robot nodes <-> logic steps (each individually)
-edge(C2, D0, 'dock_status', color=RED, ex=1, ey=ry(466, 38, 494), nx=0.5, ny=0, points=((370, 494), (370, 828), (690, 828)), lx=0.55, loff=(0, -9), font=10)
-edge(U0, C2, '/undock', color=BLUE, ex=0.5, ey=0, nx=1, ny=ry(466, 38, 478), points=((880, 818), (382, 818), (382, 478)), lx=-0.7, loff=(0, -9), font=10)
-edge(OAK, O1, '카메라 이미지', color=RED, ex=1, ey=ry(324, 66, 386), nx=round((975 - 840) / 260, 4), ny=0,
-     points=((394, 386), (394, 808), (975, 808)), lx=0.62, loff=(0, -9), font=10)
-edge(OAK, O2, '카메라 이미지', color=RED, ex=0, ey=ry(324, 66, 340), nx=round((1090 - 860) / 240, 4), ny=1,
-     points=((8, 340), (8, 1600), (1090, 1600)), lx=0.55, loff=(0, 10), font=10)
-edge(EN, C2, '/dock', color=BLUE, ex=1, ey=0.75, nx=0, ny=ry(466, 38, 485), points=((1075, 1430), (1075, 1592), (16, 1592), (16, 485)),
-     lx=-0.62, loff=(0, -9), font=10)
-edge(C3, SAFE, '/battery_state · /hazard_detection', color=RED, ex=0, ey=0.5, nx=round((630 - 420) / 420, 4), ny=1,
-     points=((24, 526), (24, 1584), (630, 1584)), lx=0.75, loff=(0, -9), font=10)
+# Robot nodes <-> logic (group level; each step's tag says which one it uses)
+edge(OAK, LOGIC, '카메라 이미지', color=RED, ex=1, ey=ry(324, 66, 386), nx=round((880 - 400) / 1240, 4), ny=0,
+     points=((394, 386), (394, 764), (880, 764)), lx=0.3, loff=(0, -9), font=10)
+edge(C2, LOGIC, '/undock · /dock · dock_status', color=BLUE, both=True, ex=1, ey=ry(466, 38, 485), nx=round((760 - 400) / 1240, 4), ny=0,
+     points=((382, 485), (382, 773), (760, 773)), lx=0.35, loff=(0, 9), font=10)
+edge(C3, LOGIC, '/battery_state', color=RED, ex=1, ey=ry(510, 32, 526), nx=round((640 - 400) / 1240, 4), ny=0,
+     points=((370, 526), (370, 790), (640, 790)), lx=0.55, loff=(0, 9), font=10)
 
-# SM <-> logic steps (dashed = server)
+# SERVER <-> logic (group level, dashed)
 sy = lambda y: round((y - 850) / 620, 4)
 SMD = dict(dashed=True, font=10)
-edge(SM, S0, '작업 시작', color=RED, ex=1, ey=sy(880), nx=0, ny=0.5, lx=-0.3, loff=(0, -9), **SMD)
-edge(O1, SM, 'a_mission · 좌표 · image', color=BLUE, ex=round((960 - 840) / 260, 4), ey=1, nx=1, ny=sy(1085),
-     points=((960, 1085),), lx=0.55, loff=(0, -9), **SMD)
-edge(SM, VS, 'remission_list<br>(DB에서 받아오기)', color=RED, ex=1, ey=sy(1150), nx=0, ny=0.5, lx=-0.1, loff=(0, -16), **SMD)
-edge(SM, P2, 'b가 방문한 좌표', color=RED, ex=1, ey=sy(1206), nx=round((800 - 640) / 240, 4), ny=1, points=((800, 1206),), lx=-0.55, loff=(0, -9), **SMD)
-edge(SM, D3, 'server에서 b 방문 좌표 subscribe', color=RED, ex=1, ey=sy(1226), nx=0.5, ny=0, points=((705, 1226),), lx=-0.25, loff=(0, 10), **SMD)
-edge(O2, SM, 'a_remission · 좌표 · image', color=BLUE, ex=round((980 - 860) / 240, 4), ey=1, nx=1, ny=sy(1352),
-     points=((980, 1352),), lx=0.6, loff=(0, -9), **SMD)
-edge(SM, BW, 'B 작업 상태', color=RED, ex=1, ey=sy(1455), nx=0.25, ny=0.75, points=((662, 1455),), lx=-0.5, loff=(0, 10), **SMD)
+edge(SM, LOGIC, '작업 명령 · B 순찰 구역 데이터<br>(30초 수신 대기 포함)', color=RED, dashed=True, ex=1, ey=sy(880), nx=0, ny=round((880 - 800) / 1030, 4),
+     lx=-0.1, loff=(0, -16), font=10)
+edge(LOGIC, SM, '이미지 · 위치 · 섹터 · 시각<br>(352×352)', color=BLUE, dashed=True, ex=0, ey=round((1010 - 800) / 1030, 4), nx=1, ny=sy(1010),
+     lx=0.1, loff=(0, 16), font=10)
 
 # SM <-> Detect
 edge(SM, DET, 'image', color=BLUE, ex=0.3, ey=1, nx=0.3, ny=0, loff=(-24, 0), **SMD)
 edge(DET, SM, '탐지 결과 → DB', color=RED, ex=0.7, ey=0, nx=0.7, ny=1, loff=(46, 0), **SMD)
 
 xml = ('<mxfile host="app.diagrams.net"><diagram id="robotA-arch" name="로봇 A 시스템 설계도">'
-       '<mxGraphModel dx="1720" dy="1640" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" '
-       'fold="1" page="1" pageScale="1" pageWidth="1720" pageHeight="1640" math="0" shadow="0"><root>'
+       '<mxGraphModel dx="1720" dy="1900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" '
+       'fold="1" page="1" pageScale="1" pageWidth="1720" pageHeight="1900" math="0" shadow="0"><root>'
        '<mxCell id="0"/><mxCell id="1" parent="0"/>' + ''.join(cells) + '</root></mxGraphModel></diagram></mxfile>')
 open(sys.argv[1], 'w', encoding='utf-8').write(xml)
 print('cells', len(cells))
