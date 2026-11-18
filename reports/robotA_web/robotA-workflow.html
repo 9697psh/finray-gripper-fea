@@ -92,6 +92,15 @@ label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); font-weig
 :root[data-theme="dark"] .cell[class*="k-"] { color: var(--fg); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .cell[class*="k-"] { color: var(--fg); } }
 .now { box-shadow: inset 0 -3px 0 var(--accent); }
+.sched td.ord { padding: 2px 4px; white-space: nowrap; width: 56px; }
+.ordbtn { padding: 0 6px; font-size: 12px; line-height: 20px; height: 22px; min-width: 22px; border-radius: 5px; }
+.ordbtn:disabled { opacity: .25; }
+.cellpick { position: fixed; z-index: 55; background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 6px; display: grid; gap: 6px; box-shadow: 0 6px 24px rgba(0,0,0,.18); min-width: 220px; }
+.cellpick .opts { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.cellpick .cell { height: 30px; border: 1px solid var(--line); }
+.cellpick .cell[aria-pressed="true"] { outline: 2px solid var(--fg); outline-offset: 1px; }
+.cellpick .cell.k-비움 { background: transparent; color: var(--muted); border-style: dashed; }
+.cellpick .lbl { font-size: 11.5px; color: var(--muted); padding: 0 2px; }
 tr.team-B td { opacity: .78; }
 tr.groupsep td { background: var(--panel-2); font-weight: 600; font-size: 12px; color: var(--muted); }
 /* cards */
@@ -357,7 +366,9 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
     else if (S.timedOut && !ready) pre = '<div class="notice warn">저장소 응답이 늦습니다. 잠시 후 자동으로 채워집니다.</div>';
     else if (S.readOnly) pre = '<div class="notice">보기 전용입니다. 기록을 남기려면 공유 설정에서 참여자(Contributor) 이상 권한을 받아야 합니다.</div>';
     const body = { overview: vOverview, schedule: vSchedule, notes: vNotes, links: vLinks, refs: vRefs, code: vCode, cmds: vCmds, attempts: vAttempts, logs: vLogs, deck: vDeck, task: vOverview }[v === 'task' ? (lastView || 'overview') : v]();
+    const ae = document.activeElement, keep = ae && app.contains(ae) ? (ae.dataset.move ? `[data-move="${CSS.escape(ae.dataset.move)}"]` : ae.dataset.cell ? `[data-cell="${CSS.escape(ae.dataset.cell)}"]` : null) : null;
     app.innerHTML = pre + body;
+    if (keep) { const n = app.querySelector(keep); if (n && !n.disabled) n.focus({ preventScroll: true }); }
     if (v === 'task') openTask(location.hash.slice(6)); else closeSheet();
   }
   let lastView = 'overview';
@@ -424,17 +435,19 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
     const rows = []; let team = null;
     T.forEach(t => {
       const tm = teamOf(t);
-      if (tm !== team) { team = tm; rows.push(`<tr class="groupsep"><td colspan="${4 + 15}">로봇 ${tm}</td></tr>`); }
+      if (tm !== team) { team = tm; rows.push(`<tr class="groupsep"><td colspan="${5 + DAYS.length * 3}">로봇 ${tm}</td></tr>`); }
+      const sib = sortTasks(S.tasks.filter(x => teamOf(x) === tm)), pos = sib.findIndex(x => x.id === t.id);
+      const ord = can ? `<button class="ordbtn" data-move="${esc(t.id)}|-1" ${pos <= 0 ? 'disabled' : ''} aria-label="${esc(t.title)} 위로" title="위로">↑</button> <button class="ordbtn" data-move="${esc(t.id)}|1" ${pos >= sib.length - 1 ? 'disabled' : ''} aria-label="${esc(t.title)} 아래로" title="아래로">↓</button>` : `<span class="small muted">${pos + 1}</span>`;
       const cells = DAYS.map(d => PARTS.map((p, i) => { const k = slotKey(d, i), v = (t.slots || {})[k] || ''; return `<td class="c ${i === 0 ? 'dstart' : ''}"><button class="cell ${v ? 'k-' + v : ''} ${k === ns ? 'now' : ''}" data-cell="${esc(t.id)}|${k}" aria-label="${esc(t.title)} ${labelSlot(k)} ${v || '비어 있음'}">${v}</button></td>`; }).join('')).join('');
       const fresh = t.updatedAt && t.updatedBy && t.updatedBy !== S.me && Date.now() - new Date(t.updatedAt) < 15000 ? 'fresh' : '';
-      rows.push(`<tr class="${fresh}"><td><span class="tag">${esc(t.phase)}</span></td><td class="task"><button data-open="${esc(t.id)}">${esc(t.title)}</button></td>
+      rows.push(`<tr class="${fresh}"><td class="ord">${ord}</td><td><span class="tag">${esc(t.phase)}</span></td><td class="task"><button data-open="${esc(t.id)}">${esc(t.title)}</button></td>
         <td class="small own">${can ? `<input class="inl" data-owner="${esc(t.id)}" value="${esc(t.owner || '')}" aria-label="담당자">` : esc(t.owner || '')}</td>
         <td class="st">${can ? `<select class="inl s-${esc(t.status || '예정')}" data-status="${esc(t.id)}" aria-label="진행 상황">${STATUSES.map(x => `<option ${t.status === x ? 'selected' : ''}>${x}</option>`).join('')}</select>` : `<span class="pill s-${esc(t.status || '예정')}">${esc(t.status || '예정')}</span>`}</td>${cells}</tr>`);
     });
     return `<section class="grid" style="gap:10px">
-      <div class="toolbar"><h2>일정</h2><span class="small muted">담당자·진행 상황은 표에서 바로 고칩니다. 칸을 누르면 계획 → 진행 → 완료 → 예비 → 비움 순으로 바뀌고, 모든 팀원 화면에 바로 반영됩니다.</span>
+      <div class="toolbar"><h2>일정</h2><span class="small muted">칸을 누르면 계획 · 진행 · 완료 · 예비 · 비움 중에서 바로 고릅니다. 왼쪽 ↑↓로 작업 순서를 바꾸고, 담당자·진행 상황은 표에서 바로 고칩니다. 모든 팀원 화면에 바로 반영됩니다.</span>
       <span style="margin-left:auto" class="row">${can ? '<button data-act="newtask">작업 추가</button>' : ''}</span></div>
-      <div class="sched"><table><thead><tr><th rowspan="2">구분</th><th rowspan="2">세부항목</th><th rowspan="2" class="own">담당자</th><th rowspan="2" class="own">진행 상황</th>${head1}</tr><tr>${head2}</tr></thead><tbody>${rows.join('')}</tbody></table></div>
+      <div class="sched"><table><thead><tr><th rowspan="2">순서</th><th rowspan="2">구분</th><th rowspan="2">세부항목</th><th rowspan="2" class="own">담당자</th><th rowspan="2" class="own">진행 상황</th>${head1}</tr><tr>${head2}</tr></thead><tbody>${rows.join('')}</tbody></table></div>
     </section>`;
   }
 
@@ -1054,6 +1067,33 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
   }
 
   // ---------- events ----------
+  // ---------- schedule cell picker ----------
+  const PICKS = ['계획', '진행', '완료', '예비', '비움'];
+  function closePicker() { const p = document.querySelector('.cellpick'); if (p) p.remove(); }
+  function refocusCell(id, k) { const c = document.querySelector(`[data-cell="${CSS.escape(id + '|' + k)}"]`); if (c) c.focus(); }
+  function openPicker(anchor, t, k) {
+    const same = document.querySelector('.cellpick'); const wasSame = same && same.dataset.for === t.id + '|' + k; closePicker(); if (wasSame) return;
+    const cur = (t.slots || {})[k] || '';
+    const p = document.createElement('div'); p.className = 'cellpick'; p.dataset.for = t.id + '|' + k; p.dataset.at = Date.now(); p.setAttribute('role', 'dialog'); p.setAttribute('aria-label', '일정 칸 값 고르기');
+    p.innerHTML = `<div class="lbl">${esc(labelSlot(k))} · ${esc(t.title.length > 24 ? t.title.slice(0, 24) + '…' : t.title)}</div><div class="opts">${PICKS.map(v => `<button class="cell k-${v}" data-pick="${esc(t.id)}|${k}|${v}" aria-pressed="${(v === '비움' ? !cur : cur === v) ? 'true' : 'false'}">${v}</button>`).join('')}</div>`;
+    document.body.appendChild(p);
+    const r = anchor.getBoundingClientRect(), w = p.offsetWidth, h = p.offsetHeight;
+    let x = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), window.innerWidth - w - 8), y = r.bottom + 6;
+    if (y + h > window.innerHeight - 8) y = Math.max(8, r.top - h - 6);
+    p.style.left = x + 'px'; p.style.top = y + 'px';
+    const first = p.querySelector('[aria-pressed="true"]') || p.querySelector('button'); if (first) first.focus();
+    p.addEventListener('keydown', ev => {
+      const bs = [...p.querySelectorAll('button')], i = bs.indexOf(document.activeElement);
+      if (ev.key === 'ArrowRight' || ev.key === 'ArrowDown') { ev.preventDefault(); bs[(i + 1) % bs.length].focus(); }
+      if (ev.key === 'ArrowLeft' || ev.key === 'ArrowUp') { ev.preventDefault(); bs[(i - 1 + bs.length) % bs.length].focus(); }
+      if (ev.key === 'Escape') { ev.stopPropagation(); closePicker(); refocusCell(t.id, k); }
+    });
+  }
+  window.addEventListener('resize', closePicker);
+  document.addEventListener('pointerdown', e => { if (!e.target.closest('.cellpick') && !e.target.closest('[data-cell]')) closePicker(); }, true);
+  window.addEventListener('scroll', e => { const pk = document.querySelector('.cellpick'); if (pk && Date.now() - Number(pk.dataset.at || 0) > 400 && !(e.target && e.target.closest && e.target.closest('.cellpick'))) closePicker(); }, true);
+  window.addEventListener('hashchange', closePicker);
+
   document.addEventListener('click', async e => {
     const va = e.target.closest('[data-ver-add]');
     if (va) { verAddModal(va.dataset.verAdd); return; }
@@ -1110,6 +1150,33 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
       setTimeout(() => { const n = document.getElementById('code-' + cid); if (n) { n.scrollIntoView({ block: 'center', behavior: 'smooth' }); n.classList.add('flash'); } }, 120);
       return;
     }
+    const pk = e.target.closest('[data-pick]');
+    if (pk) {
+      const [id, k, val] = pk.dataset.pick.split('|'); const t = byId(S.tasks, id); closePicker(); if (!t) return;
+      const cur = (t.slots || {})[k] || ''; const nxt = val === '비움' ? '' : val;
+      if (cur === nxt) return;
+      const slots = { ...(t.slots || {}) }; if (nxt) slots[k] = nxt; else delete slots[k];
+      const prev = t.slots; t.slots = slots; render(); refocusCell(id, k);
+      const ok = await write(() => db.doc('tasks/' + id).update({ slots: slots, ...stamp() }));
+      if (!ok) { t.slots = prev; render(); }
+      return;
+    }
+    const mv = e.target.closest('[data-move]');
+    if (mv) {
+      if (!db || S.readOnly) { toast('순서를 바꾸려면 저장 권한이 필요합니다.'); return; }
+      const [id, dir] = mv.dataset.move.split('|'); const t = byId(S.tasks, id); if (!t) return;
+      const sib = sortTasks(S.tasks.filter(x => teamOf(x) === teamOf(t))), i = sib.findIndex(x => x.id === id), j = i + Number(dir);
+      if (i < 0 || j < 0 || j >= sib.length) return;
+      [sib[i], sib[j]] = [sib[j], sib[i]];
+      const changed = sib.map((x, n) => ({ x, n: n + 1 })).filter(({ x, n }) => (x.order || 0) !== n);
+      const before = changed.map(({ x }) => [x, x.order]); changed.forEach(({ x, n }) => { x.order = n; });
+      render(true);
+      const again = document.querySelector(`[data-move="${CSS.escape(id + '|' + dir)}"]`), other = document.querySelector(`[data-move="${CSS.escape(id + '|' + (-dir))}"]`);
+      (again && !again.disabled ? again : other) && (again && !again.disabled ? again : other).focus();
+      const ok = await write(() => Promise.all(changed.map(({ x, n }) => db.doc('tasks/' + x.id).update({ order: n, ...stamp() }))));
+      if (!ok) { before.forEach(([x, o]) => { x.order = o; }); render(); }
+      return;
+    }
     const el = e.target.closest('[data-open],[data-close],[data-cell],[data-act],[data-save-task],[data-edit-attempt],[data-del-log],[data-edit-code],[data-del-code]');
     if (!el) return;
     if (el.dataset.open) { lastView = view() === 'task' ? lastView : view(); location.hash = 'task-' + el.dataset.open; return; }
@@ -1117,9 +1184,7 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
     if (el.dataset.cell) {
       if (!db || S.readOnly) { toast('일정을 바꾸려면 저장 권한이 필요합니다.'); return; }
       const [id, k] = el.dataset.cell.split('|'); const t = byId(S.tasks, id); if (!t) return;
-      const cur = (t.slots || {})[k] || ''; const nxt = CELL_CYCLE[(CELL_CYCLE.indexOf(cur) + 1) % CELL_CYCLE.length];
-      const slots = { ...(t.slots || {}) }; if (nxt) slots[k] = nxt; else delete slots[k];
-      await write(() => db.doc('tasks/' + id).update({ slots: slots, ...stamp() }));
+      openPicker(el, t, k);
       return;
     }
     if (el.dataset.saveTask) {
