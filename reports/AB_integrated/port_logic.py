@@ -155,15 +155,15 @@ set_edge('e76', 'pc1logic', 'pc1bt', (2480, OY), (2120, 1880), [(2480, 1940), (2
 (p0, (x0, y0, w0, h0)), (p6, (x6, y6, w6, h6)), (p7, (x7, y7, w7, h7)) = P0, P6, P7
 (r0, (xr, yr, wr, hr)), (r6, (x8, y8, w8, h8)) = R0, R6
 set_edge('e71', 'srvStart' if 'srvStart' in cells else cells['e71'].get('source'), p0, (3780, 860), (x0, y0 + h0 / 2),
-         [(3740, 860), (3740, 2060), (290, 2060), (290, y0 + h0 / 2)], '시작')
-set_edge('e255', p0, cells['e255'].get('target'), (x0 + w0 * 0.92, y0), (7420, 940), [(x0 + w0 * 0.92, 3930), (7280, 3930), (7280, 940)], '로봇 A 토픽 (/robot_a/…)\nstatus · battery_state · current_zone · zone_result\ndetections · detection_image · amcl_pose')
-set_edge('e73', p7, cells['e73'].get('target'), (1900, y7), (3780, 1360), [(1900, 4260), (3720, 4260), (3720, 1360)], '사진 · 위치 (352×352)')
-set_edge('e203', cells['e203'].get('source'), p6, (5440, 980), (x6 + w6 / 2, y6), [(2520, 980), (2520, 4240), (x6 + w6 / 2, 4240)], '아니요: 재촬영 요청')
+         [(3740, 860), (3740, 2060), (290, 2060), (290, y0 + h0 / 2)], '시작\n/robot_a/mission_cmd')
+set_edge('e255', p0, cells['e255'].get('target'), (x0 + w0 * 0.92, y0), (7420, 940), [(x0 + w0 * 0.92, 3930), (7280, 3930), (7280, 940)], '로봇 A 토픽 (/robot_a/…)\nstatus · battery_state · current_zone\ndetection_image · zone_result · amcl_pose')
+set_edge('e73', p7, cells['e73'].get('target'), (1900, y7), (3780, 1360), [(1900, 4260), (3720, 4260), (3720, 1360)], '사진 352×352 · 위치\n/robot_a/detection_image\n+ /robot_a/capture_info')
+set_edge('e203', cells['e203'].get('source'), p6, (5440, 980), (x6 + w6 / 2, y6), [(2520, 980), (2520, 4240), (x6 + w6 / 2, 4240)], '아니요: 재촬영 요청\n/robot_a/recapture_request')
 c2 = find('②', ymin=1290, exact=True)  # the ② circle that starts 재탐색
 (c2i, (xc, yc, wc, hc)) = c2
 set_edge('e78', cells['e78'].get('source'), c2i, (3780, 4320), (xc + wc / 2, yc),
-         [(3600, 4320), (3600, 5110), (xc + wc / 2, 5110)], 'B 순찰 구역 · 재방문 목록 → ② 재탐색')
-set_edge('e79', r6, cells['e79'].get('target'), (x8 + w8, y8 + h8 / 2), (3780, 4820), [(3700, y8 + h8 / 2), (3700, 4820)], '재확인 결과')
+         [(3600, 4320), (3600, 5110), (xc + wc / 2, 5110)], 'B 순찰 구역 · 재방문 목록 → ② 재탐색\n/robot_a/remission_list')
+set_edge('e79', r6, cells['e79'].get('target'), (x8 + w8, y8 + h8 / 2), (3780, 4820), [(3700, y8 + h8 / 2), (3700, 4820)], '재확인 사진 (mode=recheck)\n/robot_a/detection_image · capture_info')
 # robot B monitoring topics (team topic request) and robot A namespace in the robot box title
 lb = cells.get('e256_label')
 if lb is not None: lb.set('value', '로봇 B 토픽 (/robot_b/…)\nstatus · battery_state · current_zone\namcl_pose · harvest_status')
