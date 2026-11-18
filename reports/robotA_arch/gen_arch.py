@@ -101,11 +101,28 @@ for i, (col, dsh, wd, txt) in enumerate([(RED, False, 2, '외부 → PC (입력)
     box(x + 52, y, 215, 16, txt, TEXT.replace('fontSize=12', 'fontSize=11'))
 
 # ---------- external (left) ----------
-BOT = box(40, 160, 260, 300, t('Bot', 'TurtleBot4 (/robot&lt;n&gt;)', '', 'Create3 베이스', '/odom · /tf · 배터리',
-                                '/dock · /undock (action)', '', 'RPLIDAR → /scan', '',
-                                'OAK-D → /oakd/rgb/preview/image_raw', sub=11), EXT)
+# Robot A — what actually runs on the TurtleBot4 (turtlebot4_bringup standard.launch.py on the Pi + Create 3 firmware)
+ROBOT = box(30, 105, 280, 452, '<b>로봇 A · TurtleBot4</b>  <span style="font-weight:normal;font-size:11px">(/robot&lt;n&gt;)</span>',
+            S(rounded=1, whiteSpace='wrap', html=1, fillColor='#F4F4F4', strokeColor=INK, strokeWidth=2, fontSize=14, fontColor='#1A1A1A',
+              align='center', verticalAlign='top', spacingTop=2, arcSize=4))
+SUBG = lambda title: S(rounded=1, whiteSpace='wrap', html=1, fillColor='#FFFFFF', strokeColor='#888888', strokeWidth=1, dashed=1, fontSize=10,
+                      fontStyle=1, fontColor='#444444', align='left', verticalAlign='top', spacingLeft=6, spacingTop=1, arcSize=4)
+box(38, 128, 264, 262, 'Raspberry Pi 4 <span style="font-weight:normal">· turtlebot4_bringup (부팅 시 자동 실행)</span>', SUBG(''))
+box(38, 400, 264, 150, 'Create 3 베이스 <span style="font-weight:normal">· 자체 펌웨어 (토픽은 republisher가 중계)</span>', SUBG(''))
+RN = lambda col='#555555', fill='#FFFFFF': S(rounded=1, whiteSpace='wrap', html=1, fillColor=fill, strokeColor=col, strokeWidth=1.2, fontSize=10,
+                                            fontColor='#1A1A1A', align='left', verticalAlign='middle', spacingLeft=6, arcSize=10)
+RSP = box(48, 150, 244, 38, '<b>robot_state_publisher</b> · joint_state_publisher<br>→ /tf_static (라이다 · 카메라 위치)', RN())
+LID = box(48, 194, 244, 40, '<b>rplidar_composition</b> (rplidar_ros)<br>라이다 드라이버 → /scan', RN())
+REP = box(48, 240, 244, 40, '<b>create3_republisher</b><br>Create 3 토픽·액션을 /robot&lt;n&gt;/… 로 중계', RN())
+box(48, 286, 244, 32, 'turtlebot4_node · base_node  <span style="color:#777">버튼 · 화면 · LED</span>', RN('#AAAAAA', '#FAFAFA'))
+OAK = box(48, 324, 244, 66, '<b>oakd</b> (depthai_ros_driver)<br>카메라 드라이버 · 이미지를 <b>계속</b> 발행<br>/oakd/rgb/preview/image_raw', RN())
+C1 = box(48, 422, 244, 38, '<b>바퀴 구동 · 주행거리</b><br>/cmd_vel 구독 → /odom · TF odom→base_link', RN())
+C2 = box(48, 466, 244, 38, '<b>도킹</b><br>/dock · /undock 액션 서버 · /dock_status', RN())
+C3 = box(48, 510, 244, 32, '<b>배터리 · 안전 센서</b>  /battery_state · /hazard_detection', RN())
+MON = box(40, 575, 220, 150, '<b>System Monitor</b>', EXT)
 DET = box(40, 1505, 220, 70, t('Detect', '비전 인식 팀 (YOLO)', sub=11), EXT)
-SM = box(40, 850, 220, 620, t('SM', 'Main PC 서버 · DB', '', '작업 지시', '결과 저장', '재방문 목록', '(remission_list)', 'B 작업 상태', sub=11), EXT)
+SM = box(40, 850, 220, 620, t('SERVER', '', '작업 지시', '결과 저장', '재방문 목록', '(remission_list)', 'B 작업 상태', sub=11), EXT)
+edge(SM, MON, '전달', color=RED, dashed=True, ex=0.5, ey=0, nx=0.5, ny=1, font=10)
 
 # ---------- PC ----------
 box(360, 80, 1320, 1530, 'PC  (원격 PC · ROS 2 Jazzy)',
@@ -156,7 +173,7 @@ edge(None, None, color='#777777', dashed=True, end='none', width=1.5, spt=(400, 
 # Our logic — the team's flowchart; every step is wired to the Nav2 / Bot / SM item it talks to
 LG_Y, LG_H = 800, 760
 LOGIC = box(400, LG_Y, 1240, LG_H, '우리의 로직  <span style="font-weight:normal;font-size:12px">Robot A 미션 흐름</span>',
-            group(OUR_C, OUR_F).replace('verticalAlign=top', 'verticalAlign=bottom').replace('spacingTop=4', 'spacingBottom=6'))
+            group(OUR_C, OUR_F, align='right').replace('verticalAlign=top', 'verticalAlign=bottom').replace('spacingTop=4', 'spacingBottom=6'))
 STP = node(OUR_C, '#FFFFFF', fs=12)
 def step(x, y, w, h, html): return box(x, y, w, h, html, STP)
 def dec(x, y, w, h, html):
@@ -171,7 +188,7 @@ NAVL = dict(color=NAV_C, width=2.5, font=11, both=True)
 # row A — start & patrol entry
 S0 = box(430, 850, 140, 60, '<b>작업 시작</b>', 'ellipse;' + S(whiteSpace='wrap', html=1, fillColor='#FFFFFF', strokeColor=RED,
                                                                 strokeWidth=1.8, fontSize=13, fontColor=RED))
-D0 = dec(610, 835, 160, 90, '<b>is docked?</b>')
+D0 = dec(610, 835, 160, 90, '<b>is initial pose<br>&amp; docked?</b>')
 U0 = step(810, 857, 140, 46, '<b>언도킹</b>')
 P1 = step(990, 850, 220, 60, HL('<b>순찰 자율주행</b>') + '<br><span style="font-size:11px">좌표 1,2,3,4 (i = 1부터)</span>')
 M1 = step(1290, 857, 160, 46, '<b>좌표 i로 이동</b>')
@@ -194,7 +211,7 @@ WT = step(410, 1392, 170, 46, '잠시 대기 후<br>다시 확인')
 BW = dec(620, 1370, 170, 90, 'B 작업<br>끝났나?')
 EN = step(840, 1385, 220, 60, '<b>현 작업 종료 및</b><br><b>도킹 스테이션 이동</b>')
 END = box(880, 1478, 140, 28, '<b>작업종료</b>', TEXT.replace('align=left', 'align=center').replace('fontSize=12', 'fontSize=14'))
-box(1170, 1468, 450, 72, '<b>상시 감시 (전 과정)</b><br>배터리 부족 → 도킹 복귀 · 비상정지 → 즉시 정지<br>통신 3초 끊김 → 정지',
+SAFE = box(420, 1470, 420, 72, '<b>상시 감시 (전 과정)</b><br>배터리 부족 → 도킹 복귀 · 비상정지 → 즉시 정지<br>통신 3초 끊김 → 정지',
     node('#B58A00', '#FFFBEA', fs=11))
 
 # flow
@@ -232,22 +249,26 @@ edge(RVIZ, AMCL, label='/initialpose', color=INK, ex=0, ey=round((165 - 140) / 7
 edge(LOC, NAV, label='/map → global costmap<br>TF map→odom (로봇 위치)', color=INK, ex=round((780 - 400) / 600, 4), ey=1,
      nx=round((780 - 400) / 1240, 4), ny=0, width=2.5, font=11, loff=(95, 0))
 
-# Bot <-> PC
-edge(BOT, AMCL, label='/scan · /tf', color=RED, ex=1, ey=round((200 - 160) / 300, 4), nx=0, ny=round((200 - 185) / 80, 4))
-edge(COLL, BOT, label='/cmd_vel', color=BLUE, ex=0.5, ey=0, nx=1, ny=round((355 - 160) / 300, 4), points=((520, 355),),
-     lx=0.55, width=2.5, font=11)
-edge(BOT, NAV, label='/scan · /odom · /tf', color=RED, ex=1, ey=round((388 - 160) / 300, 4), nx=0,
-     ny=round((388 - 380) / 380, 4), loff=(0, -10))
-# Bot <-> logic steps (each individually)
-by = lambda y: round((y - 160) / 300, 4)
-edge(BOT, D0, 'dock_status', color=RED, ex=1, ey=by(418), nx=0.5, ny=0, points=((370, 418), (370, 828), (690, 828)), lx=0.55, loff=(0, -9), font=10)
-edge(U0, BOT, '/undock', color=BLUE, ex=0.5, ey=0, nx=1, ny=by(408), points=((880, 818), (382, 818), (382, 408)), lx=-0.7, loff=(0, -9), font=10)
-edge(BOT, O1, '카메라 이미지', color=RED, ex=1, ey=by(398), nx=round((975 - 840) / 260, 4), ny=0,
-     points=((394, 398), (394, 808), (975, 808)), lx=0.62, loff=(0, -9), font=10)
-edge(BOT, O2, '카메라 이미지', color=RED, ex=0, ey=by(430), nx=round((1090 - 860) / 240, 4), ny=1,
-     points=((14, 430), (14, 1598), (1090, 1598)), lx=0.55, loff=(0, 10), font=10)
-edge(EN, BOT, '/dock', color=BLUE, ex=1, ey=0.75, nx=0, ny=by(445), points=((1075, 1430), (1075, 1590), (22, 1590), (22, 445)),
+# Robot nodes <-> Localization / Nav2
+ry = lambda node_y, h, y: round((y - node_y) / h, 4)
+edge(RSP, LOC, '/tf_static', color=RED, ex=1, ey=ry(150, 38, 169), nx=0, ny=round((169 - 120) / 210, 4), lx=0.1, loff=(0, -9), font=10)
+edge(LID, AMCL, '/scan', color=RED, ex=1, ey=ry(194, 40, 205), nx=0, ny=round((205 - 185) / 80, 4), lx=0.1, loff=(0, -9), font=10)
+edge(LID, NAV, '/scan (costmap · collision_monitor)', color=RED, ex=1, ey=ry(194, 40, 224), nx=round((410 - 400) / 1240, 4), ny=0,
+     points=((410, 224),), lx=0.7, loff=(95, 0), font=10)
+edge(C1, NAV, '/odom · TF odom→base_link', color=RED, ex=1, ey=ry(422, 38, 434), nx=0, ny=round((434 - 380) / 380, 4), lx=0.1, loff=(0, -9), font=10)
+edge(COLL, C1, '/cmd_vel', color=BLUE, ex=0, ey=0.5, nx=1, ny=ry(422, 38, 452), points=((408, 585), (408, 452)), lx=0.75, loff=(0, 9), width=2.5, font=11)
+
+# Robot nodes <-> logic steps (each individually)
+edge(C2, D0, 'dock_status', color=RED, ex=1, ey=ry(466, 38, 494), nx=0.5, ny=0, points=((370, 494), (370, 828), (690, 828)), lx=0.55, loff=(0, -9), font=10)
+edge(U0, C2, '/undock', color=BLUE, ex=0.5, ey=0, nx=1, ny=ry(466, 38, 478), points=((880, 818), (382, 818), (382, 478)), lx=-0.7, loff=(0, -9), font=10)
+edge(OAK, O1, '카메라 이미지', color=RED, ex=1, ey=ry(324, 66, 386), nx=round((975 - 840) / 260, 4), ny=0,
+     points=((394, 386), (394, 808), (975, 808)), lx=0.62, loff=(0, -9), font=10)
+edge(OAK, O2, '카메라 이미지', color=RED, ex=0, ey=ry(324, 66, 340), nx=round((1090 - 860) / 240, 4), ny=1,
+     points=((8, 340), (8, 1600), (1090, 1600)), lx=0.55, loff=(0, 10), font=10)
+edge(EN, C2, '/dock', color=BLUE, ex=1, ey=0.75, nx=0, ny=ry(466, 38, 485), points=((1075, 1430), (1075, 1592), (16, 1592), (16, 485)),
      lx=-0.62, loff=(0, -9), font=10)
+edge(C3, SAFE, '/battery_state · /hazard_detection', color=RED, ex=0, ey=0.5, nx=round((630 - 420) / 420, 4), ny=1,
+     points=((24, 526), (24, 1584), (630, 1584)), lx=0.75, loff=(0, -9), font=10)
 
 # SM <-> logic steps (dashed = server)
 sy = lambda y: round((y - 850) / 620, 4)
