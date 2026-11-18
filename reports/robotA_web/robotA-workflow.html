@@ -1155,9 +1155,10 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
       const [id, k, val] = pk.dataset.pick.split('|'); const t = byId(S.tasks, id); closePicker(); if (!t) return;
       const cur = (t.slots || {})[k] || ''; const nxt = val === '비움' ? '' : val;
       if (cur === nxt) return;
-      const slots = { ...(t.slots || {}) }; if (nxt) slots[k] = nxt; else delete slots[k];
+      // update() merges nested objects, so an emptied cell must be written as '' (dropping the key would keep the old value)
+      const slots = { ...(t.slots || {}), [k]: nxt };
       const prev = t.slots; t.slots = slots; render(); refocusCell(id, k);
-      const ok = await write(() => db.doc('tasks/' + id).update({ slots: slots, ...stamp() }));
+      const ok = await write(() => db.doc('tasks/' + id).update({ slots: { [k]: nxt }, ...stamp() }));
       if (!ok) { t.slots = prev; render(); }
       return;
     }
