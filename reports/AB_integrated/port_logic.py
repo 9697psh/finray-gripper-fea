@@ -141,14 +141,14 @@ def set_edge(eid, src, tgt, exitp, entryp, points, label, both=False, extra=''):
     for px, py in points: ET.SubElement(arr, 'mxPoint', {'x': str(round(px, 1)), 'y': str(round(py, 1))})
 
 # robot ↔ Localization / Nav2 / logic
-set_edge('e47', 'ra_lidar', 'pc1cost', (360, 7740), (680, 3400), [(360, 3440), (680, 3440)], '/scan')
-set_edge('e48', 'ra_lidar', 'pc1amcl', (340, 7740), (1780, 940), [(340, 1520), (1860, 1520), (1860, 980), (1780, 980)], '/scan')
-set_edge('e49', 'pc1collision', 'ra_drive', (2080, 3020), (2460, 7740), [(2080, 3060), (2460, 3060)], '/cmd_vel')
-set_edge('e50', 'ra_oakd', 'pc1logic', (1640, 7740), (1640, OY + 2400), [], '카메라 영상')
-set_edge('e51', 'pc1logic', 'ra_dock', (2090, OY + 2400), (2090, 7740), [], '/undock · /dock · dock_status', both=True)
-set_edge('e_ra_batt', 'ra_batt', 'pc1logic', (2700, 7740), (2700, OY + 2400), [], '/battery_state')
+set_edge('e47', 'ra_lidar', 'pc1cost', (360, 7740), (680, 3400), [(360, 3440), (680, 3440)], '/robot_a/scan')
+set_edge('e48', 'ra_lidar', 'pc1amcl', (340, 7740), (1780, 940), [(340, 1520), (1860, 1520), (1860, 980), (1780, 980)], '/robot_a/scan')
+set_edge('e49', 'pc1collision', 'ra_drive', (2080, 3020), (2460, 7740), [(2080, 3060), (2460, 3060)], '/robot_a/cmd_vel')
+set_edge('e50', 'ra_oakd', 'pc1logic', (1640, 7740), (1640, OY + 2400), [], '카메라 영상\n/robot_a/oakd/rgb/preview/image_raw')
+set_edge('e51', 'pc1logic', 'ra_dock', (2090, OY + 2400), (2090, 7740), [], '/robot_a/undock · dock\n· dock_status', both=True)
+set_edge('e_ra_batt', 'ra_batt', 'pc1logic', (2700, 7740), (2700, OY + 2400), [], '/robot_a/battery_state')
 # logic ↔ bt_navigator: every '→ Nav2' step sends a NavigateToPose goal
-set_edge('e76', 'pc1logic', 'pc1bt', (2480, OY), (2120, 1880), [(2480, 1940), (2120, 1940)], '→ Nav2 단계마다 NavigateToPose goal ↔ result', both=True,
+set_edge('e76', 'pc1logic', 'pc1bt', (2480, OY), (2120, 1880), [(2480, 1940), (2120, 1940)], '→ Nav2 단계마다 NavigateToPose goal ↔ result\n(/robot_a/navigate_to_pose)', both=True,
          extra='strokeColor=#2E7D4F;fontColor=#2E7D4F;strokeWidth=3;')
 
 # server ↔ logic steps
@@ -156,7 +156,7 @@ set_edge('e76', 'pc1logic', 'pc1bt', (2480, OY), (2120, 1880), [(2480, 1940), (2
 (r0, (xr, yr, wr, hr)), (r6, (x8, y8, w8, h8)) = R0, R6
 set_edge('e71', 'srvStart' if 'srvStart' in cells else cells['e71'].get('source'), p0, (3780, 860), (x0, y0 + h0 / 2),
          [(3740, 860), (3740, 2060), (290, 2060), (290, y0 + h0 / 2)], '시작')
-set_edge('e255', p0, cells['e255'].get('target'), (x0 + w0 * 0.92, y0), (7420, 940), [(x0 + w0 * 0.92, 3930), (7280, 3930), (7280, 940)], '로봇 A 상태')
+set_edge('e255', p0, cells['e255'].get('target'), (x0 + w0 * 0.92, y0), (7420, 940), [(x0 + w0 * 0.92, 3930), (7280, 3930), (7280, 940)], '로봇 A 토픽 (/robot_a/…)\nstatus · battery_state · current_zone · zone_result\ndetections · detection_image · amcl_pose')
 set_edge('e73', p7, cells['e73'].get('target'), (1900, y7), (3780, 1360), [(1900, 4260), (3720, 4260), (3720, 1360)], '사진 · 위치 (352×352)')
 set_edge('e203', cells['e203'].get('source'), p6, (5440, 980), (x6 + w6 / 2, y6), [(2520, 980), (2520, 4240), (x6 + w6 / 2, 4240)], '아니요: 재촬영 요청')
 c2 = find('②', ymin=1290, exact=True)  # the ② circle that starts 재탐색
@@ -164,5 +164,17 @@ c2 = find('②', ymin=1290, exact=True)  # the ② circle that starts 재탐색
 set_edge('e78', cells['e78'].get('source'), c2i, (3780, 4320), (xc + wc / 2, yc),
          [(3600, 4320), (3600, 5110), (xc + wc / 2, 5110)], 'B 순찰 구역 · 재방문 목록 → ② 재탐색')
 set_edge('e79', r6, cells['e79'].get('target'), (x8 + w8, y8 + h8 / 2), (3780, 4820), [(3700, y8 + h8 / 2), (3700, 4820)], '재확인 결과')
+# robot B monitoring topics (team topic request) and robot A namespace in the robot box title
+lb = cells.get('e256_label')
+if lb is not None: lb.set('value', '로봇 B 토픽 (/robot_b/…)\nstatus · battery_state · current_zone\namcl_pose · harvest_status')
+v = cells['ra'].get('value') or ''
+if '/robot_a' not in v: cells['ra'].set('value', v.replace('로봇 A · TurtleBot4', '로봇 A · TurtleBot4 (/robot_a)', 1))
+# robot topic labels: put them halfway between the logic box and the robot box (clear of the Create 3 header)
+for lid, w in (('e50_label', 360), ('e51_label', 230)):
+    lc = cells.get(lid)
+    if lc is not None:
+        g = lc.find('mxGeometry'); g.set('x', '0'); g.set('width', str(w)); g.set('height', '50')
+        o = g.find('mxPoint')
+        if o is not None: o.set('x', str(-w / 2)); o.set('y', '-25')
 tree.write(OUT, encoding='utf-8', xml_declaration=True)
 print('ok', len(NEW), 'logic vertices')
