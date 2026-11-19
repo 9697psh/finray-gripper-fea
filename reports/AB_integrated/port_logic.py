@@ -84,9 +84,10 @@ lab = find('① 탐색'); cells[lab[0]].find('mxGeometry').set('x', str(round(RX
 
 # ---- 3. Nav2: add the two nodes the detail design shows (unused here) ----
 DASH = 'whiteSpace=wrap;html=0;fontSize=24;spacing=12;fillColor=#FFFFFF;strokeColor=#9AA5AF;strokeWidth=2;dashed=1;rounded=1;fontColor=#6B7680;'
-for cid, x, txt in [('pc1docksrv', 140, 'docking_server\nNav2 도킹 · 이번에는 미사용 (Create 3 /dock 사용)'),
-                    ('pc1route', 1460, 'route_server\n경로 그래프 계획 · TurtleBot4 설정 없음 · 미사용')]:
-    n = ET.SubElement(MR, 'mxCell', {'id': cid, 'value': txt, 'style': DASH, 'vertex': '1', 'parent': 'pc1nav'})
+SOLID = 'whiteSpace=wrap;html=0;fontSize=24;spacing=12;fillColor=#EDF4FA;strokeColor=#58748C;strokeWidth=2;rounded=1;'
+for cid, x, txt, st_ in [('pc1docksrv', 140, 'docking_server (opennav_docking)\n도킹 액션 dock_robot · undock_robot\n실행되지만 도크 위치 미설정 → 로직은 Create 3 /dock', SOLID),
+                         ('pc1route', 1460, 'route_server\n경로 그래프 계획 · TurtleBot4 설정 없음 · 미사용', DASH)]:
+    n = ET.SubElement(MR, 'mxCell', {'id': cid, 'value': txt, 'style': st_, 'vertex': '1', 'parent': 'pc1nav'})
     ET.SubElement(n, 'mxGeometry', {'x': str(x), 'y': '1880', 'width': '700', 'height': '140', 'as': 'geometry'}); cells[cid] = n
 
 # ---- 4. robot A: nodes that actually run on the TurtleBot4 ----
