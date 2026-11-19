@@ -194,7 +194,7 @@ P2 = st(780, 845, 140, 50, 'undock', ('→ /robot_a/undock', B_))
 P3 = st(960, 845, 140, 50, '순찰 실행', ('섹터 좌표 목록', K_), col='#C0392B')
 P4 = st(430, 965, 150, 50, '순찰 좌표로 이동', ('→ Nav2: goal', G_))
 P5 = dc(600, 948, 170, 84, 'Nav2 결과<br><b>SUCCEEDED?</b>', ('goal checker 판정', G_))
-P6 = st(785, 956, 160, 68, '정지 후 사진 캡처', ('← Bot: 카메라 → 352×352', R_), ('↺ recapture_request 오면 재촬영', R_))
+P6 = st(785, 963, 160, 54, '정지 후 사진 캡처', ('← Bot: 카메라 → 352×352', R_))
 P7 = st(975, 955, 190, 70, '이미지 · 위치 · 섹터 · 시각<br>서버에 전송 (352×352)', ('→ /robot_a/detection_image', B_), ('→ /robot_a/capture_info', B_))
 P8 = dc(1185, 950, 170, 80, '배터리<br>20% 이하?', ('/robot_a/battery_state', R_))
 P9 = st(1380, 960, 200, 60, '작업 저장 후 복귀 (도킹)', ('작업 위치 저장', K_), ('→ Nav2 · /robot_a/dock', B_))
@@ -236,7 +236,7 @@ R0 = dc(420, 1352, 170, 76, '받은 데이터 있음?', ('← /robot_a/remission
 R2 = st(600, 1365, 170, 50, 'remission_list에<br>재순찰 구역 저장')
 R3 = st(800, 1365, 150, 50, '순찰 좌표로 이동', ('→ Nav2: goal', G_))
 R4 = dc(970, 1348, 160, 84, 'Nav2 결과<br><b>SUCCEEDED?</b>', ('goal checker 판정', G_))
-R5 = st(1145, 1352, 175, 76, '정지 후 사진 캡처', ('← Bot: 카메라 → 352×352', R_), ('↺ recapture_request 오면 재촬영', R_), ('list에서 방문 위치 업데이트', K_))
+R5 = st(1145, 1358, 175, 64, '정지 후 사진 캡처', ('← Bot: 카메라 → 352×352', R_), ('list에서 방문 위치 업데이트', K_))
 R6 = st(1345, 1352, 210, 76, '이미지 · 위치 · 섹터 · 시각<br>서버에 전송 (352×352)', ('→ detection_image · capture_info', B_), ('mode = recheck', B_))
 R1 = st(430, 1470, 150, 50, 'docking station<br>이동 · 대기', ('→ Nav2 · /robot_a/dock', B_))
 R11 = dc(985, 1460, 130, 70, '재탐색<br>3회 초과?')
@@ -301,8 +301,8 @@ edge(C3, LOGIC, '/robot_a/battery_state (sensor_msgs/BatteryState)', color=RED, 
 # SERVER <-> logic (group level, dashed)
 sy = lambda y: round((y - 850) / 620, 4)
 SMD = dict(dashed=True, font=10)
-edge(SM, LOGIC, '/robot_a/mission_cmd<br>/robot_a/remission_list<br>/robot_a/recapture_request', color=RED, dashed=True, ex=1, ey=sy(880), nx=0, ny=round((880 - 800) / 1030, 4),
-     lx=0, loff=(0, -30), font=10)
+edge(SM, LOGIC, '/robot_a/mission_cmd<br>/robot_a/remission_list', color=RED, dashed=True, ex=1, ey=sy(880), nx=0, ny=round((880 - 800) / 1030, 4),
+     lx=0, loff=(0, -22), font=10)
 edge(LOGIC, SM, '/robot_a/detection_image<br>(352×352)<br>/robot_a/capture_info', color=BLUE, dashed=True, ex=0, ey=round((1010 - 800) / 1030, 4), nx=1, ny=sy(1010),
      lx=0, loff=(0, 30), font=10)
 

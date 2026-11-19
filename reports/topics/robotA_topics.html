@@ -39,14 +39,13 @@ ul { margin: 3px 0 6px; padding-left: 16px; } li { margin: 1px 0; }
 <li>사진 한 장은 <code>detection_image</code>와 <code>capture_info</code> 두 토픽으로 보내고, 같은 <code>header.stamp</code>(초·나노초)로 짝을 맞춥니다.</li>
 </ul>
 
-<h3>전체 목록 (토픽 10개 · detection_image는 서버와 모니터링팀이 함께 구독)</h3>
+<h3>전체 목록 (토픽 9개 · detection_image는 서버와 모니터링팀이 함께 구독)</h3>
 <table>
 <tr><th style="width:27%">토픽</th><th style="width:21%">발행 → 구독</th><th style="width:25%">타입</th><th>발행 시점 · QoS</th></tr>
 <tr><td colspan="4" style="background:#e9eff4;font-weight:700">01. 메인서버 ↔ 로봇 A</td></tr>
 <tr><td><code>/robot_a/mission_cmd</code></td><td class="dir in">서버 → 로봇 A</td><td>String (JSON)</td><td>작업 시작 시 1회 · reliable</td></tr>
 <tr><td><code>/robot_a/detection_image</code></td><td class="dir out">로봇 A → 서버·모니터링</td><td>CompressedImage (352×352)</td><td>섹터 촬영마다 · reliable</td></tr>
 <tr><td><code>/robot_a/capture_info</code></td><td class="dir out">로봇 A → 서버</td><td>String (JSON)</td><td>이미지와 같은 시점 · reliable</td></tr>
-<tr><td><code>/robot_a/recapture_request</code></td><td class="dir in">서버 → 로봇 A</td><td>String (JSON)</td><td>사진 품질 불량 시 · reliable</td></tr>
 <tr><td><code>/robot_a/remission_list</code></td><td class="dir in">서버 → 로봇 A</td><td>String (JSON)</td><td>재방문 목록 갱신 시 · reliable + transient_local</td></tr>
 <tr><td colspan="4" style="background:#e9eff4;font-weight:700">02. 로봇 A → 시스템 모니터링팀</td></tr>
 <tr><td><code>/robot_a/status</code></td><td class="dir out">로봇 A → 모니터링</td><td>String (JSON)</td><td>상태가 바뀔 때 + 1Hz · reliable</td></tr>
@@ -58,13 +57,14 @@ ul { margin: 3px 0 6px; padding-left: 16px; } li { margin: 1px 0; }
 </table>
 
 <div class="box"><b>제외한 항목</b><br>
+• 재촬영 요청 토픽: 두지 않습니다. 로봇 A는 도착하면 찍어서 보내고 바로 다음 섹터로 갑니다. 사진이 흐리거나 작업 구역이 보이지 않으면 서버가 그 구역을 <code>/robot_a/remission_list</code>에 넣고, 로봇 A가 ② 재탐색 때 다시 찍습니다.<br>
 • <code>/robot_a/detections</code>(숙과·미숙과·병충해 개수): 서버 비전팀이 탐지하므로 로봇 A는 발행하지 않습니다.<br>
 • <code>/map</code>(공통 지도): 로봇 A는 보내지 않습니다.</div>
 </div>
 
 <div class="page">
 <h2>01. 메인서버 ↔ 로봇 A</h2>
-<div class="sub">작업 지시·사진 전송·재촬영·재방문을 다루는 토픽입니다. 설계도의 ① 탐색과 ② 재탐색 흐름에 연결됩니다.</div>
+<div class="sub">작업 지시·사진 전송·재방문을 다루는 토픽입니다. 설계도의 ① 탐색과 ② 재탐색 흐름에 연결됩니다.</div>
 
 <h3><code>/robot_a/mission_cmd</code> <span class="tag">서버 → 로봇 A</span> <span class="tag">std_msgs/String (JSON)</span></h3>
 <div>작업 시작 명령입니다. 로봇 A는 받으면 ① 탐색의 "명령 확인"을 시작합니다. 도킹 중이면 언도킹부터 합니다.</div>
@@ -87,14 +87,10 @@ ul { margin: 3px 0 6px; padding-left: 16px; } li { margin: 1px 0; }
 <li><code>x, y, yaw</code>: 촬영 시점의 <code>/robot_a/amcl_pose</code>(map 좌표, m · rad)입니다.</li>
 </ul>
 
-<h3><code>/robot_a/recapture_request</code> <span class="tag">서버 → 로봇 A</span> <span class="tag">std_msgs/String (JSON)</span></h3>
-<div>사진이 흐리거나 작업 구역이 보이지 않을 때 서버가 보냅니다. 로봇 A는 그 구역에서 다시 촬영합니다.</div>
-<pre>{"photo_id":"A_20261118_103000_A01", "zone":"A01", "reason":"blur", "timestamp":"2026-11-18T10:30:05"}</pre>
-
 <h3><code>/robot_a/remission_list</code> <span class="tag">서버 → 로봇 A</span> <span class="tag">std_msgs/String (JSON)</span></h3>
-<div>로봇 B 작업이 끝난 구역 중 재확인할 목록입니다. 로봇 A는 ② 재탐색에서 이 목록을 <code>remission_list</code>에 저장하고 차례로 방문합니다. 목록이 없으면 30초 동안 이 토픽을 기다립니다.</div>
-<pre>{"list_id":"R20261118-01", "zones":[{"zone":"A02","x":2.10,"y":0.35,"yaw":0.0},
- {"zone":"A04","x":3.80,"y":-1.20,"yaw":3.14}], "timestamp":"2026-11-18T11:05:00"}</pre>
+<div>다시 가서 찍어야 할 구역 목록입니다. 로봇 B 작업이 끝나 재확인할 구역(<code>harvest_done</code>)과, 사진이 흐리거나 작업 구역이 보이지 않아 다시 찍을 구역(<code>bad_photo</code>)이 들어갑니다. 로봇 A는 ② 재탐색에서 이 목록을 <code>remission_list</code>에 저장하고 차례로 방문합니다. 목록이 없으면 30초 동안 이 토픽을 기다립니다.</div>
+<pre>{"list_id":"R20261118-01", "zones":[{"zone":"A02","x":2.10,"y":0.35,"yaw":0.0,"reason":"harvest_done"},
+ {"zone":"A04","x":3.80,"y":-1.20,"yaw":3.14,"reason":"bad_photo"}], "timestamp":"2026-11-18T11:05:00"}</pre>
 <div>QoS를 <b>transient_local</b>로 두면 로봇 A가 나중에 구독해도 마지막 목록을 받을 수 있습니다.</div>
 </div>
 
@@ -146,7 +142,7 @@ ul { margin: 3px 0 6px; padding-left: 16px; } li { margin: 1px 0; }
 <table>
 <tr><th style="width:24%">항목</th><th style="width:20%">상대 팀</th><th>내용</th></tr>
 <tr><td>서버 통신 방식</td><td>메인서버</td><td>서버가 ROS 2 노드로 위 토픽을 직접 주고받는지 확인해야 합니다. HTTP 같은 다른 방식이면 같은 내용(이름·JSON 필드)으로 API를 정합니다.</td></tr>
-<tr><td>재촬영 응답 대기</td><td>메인서버(비전팀)</td><td>사진을 보낸 뒤 recapture_request를 몇 초 기다릴지 정해야 합니다. 그 시간 동안 로봇 A가 그 자리에 서 있어야 다시 찍을 수 있습니다.</td></tr>
+<tr><td>사진 품질 불량 처리</td><td>메인서버(비전팀)</td><td>품질 판정에서 "아니요"가 나오면 재촬영을 요청하지 않고, 그 구역을 로봇 A 재방문 목록(remission_list)에 넣는 것으로 서버 흐름을 바꿔야 합니다.</td></tr>
 <tr><td>구역 ID 형식</td><td>전체</td><td>요청서 예시는 <code>A01</code>, 로봇 A 설계도는 A1~A4로 표기되어 있습니다. 토픽에는 <code>A01</code> 형식을 쓰는 것으로 통일하기를 제안합니다.</td></tr>
 <tr><td>구역 좌표표</td><td>전체</td><td>구역 ID와 좌표(x, y, yaw)를 공통 <code>zones.yaml</code> 하나로 관리하기를 제안합니다. remission_list 좌표도 여기서 가져옵니다.</td></tr>
 <tr><td>detection_image 공용</td><td>모니터링팀</td><td>모니터링팀이 요청한 "구역별 탐지 이미지"를 로봇 A의 352×352 촬영 사진으로 제공합니다. 탐지 박스가 그려진 라벨 사진이 필요하면 서버 비전팀이 발행해야 합니다.</td></tr>

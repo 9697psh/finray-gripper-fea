@@ -159,7 +159,12 @@ set_edge('e71', 'srvStart' if 'srvStart' in cells else cells['e71'].get('source'
          [(3740, 860), (3740, 2060), (290, 2060), (290, y0 + h0 / 2)], '시작\n/robot_a/mission_cmd')
 set_edge('e255', p0, cells['e255'].get('target'), (x0 + w0 * 0.92, y0), (7420, 940), [(x0 + w0 * 0.92, 3930), (7280, 3930), (7280, 940)], '로봇 A 토픽 (/robot_a/…)\nstatus · battery_state · current_zone\ndetection_image · zone_result · amcl_pose')
 set_edge('e73', p7, cells['e73'].get('target'), (1900, y7), (3780, 1360), [(1900, 4260), (3720, 4260), (3720, 1360)], '사진 352×352 · 위치\n/robot_a/detection_image\n+ /robot_a/capture_info')
-set_edge('e203', cells['e203'].get('source'), p6, (5440, 980), (x6 + w6 / 2, y6), [(2520, 980), (2520, 4240), (x6 + w6 / 2, 4240)], '아니요: 재촬영 요청\n/robot_a/recapture_request')
+# a bad A photo no longer asks the robot to retake it on the spot: the server queues that sector for A's ② re-check (remission_list)
+set_edge('e203', cells['e203'].get('source'), 'snotify', (5440, 980), (4600, 4300), [(4900, 980), (4900, 4300)], '아니요: A 재방문 목록에 등록')
+lc = cells.get('e203_label')
+if lc is not None:
+    g = lc.find('mxGeometry'); g.set('x', '-0.1'); o = g.find('mxPoint')
+    if o is not None: o.set('x', '-140'); o.set('y', '-16')
 c2 = find('②', ymin=1290, exact=True)  # the ② circle that starts 재탐색
 (c2i, (xc, yc, wc, hc)) = c2
 set_edge('e78', cells['e78'].get('source'), c2i, (3780, 4320), (xc + wc / 2, yc),
