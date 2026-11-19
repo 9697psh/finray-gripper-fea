@@ -130,7 +130,7 @@ ul { margin: 3px 0 6px; padding-left: 16px; } li { margin: 1px 0; }
 <table>
 <tr><th style="width:38%">토픽 · 액션</th><th style="width:30%">타입</th><th>용도</th></tr>
 <tr><td><code>/robot_a/oakd/rgb/preview/image_raw</code></td><td>sensor_msgs/Image</td><td>카메라 원본 → 352×352로 변환해 detection_image로 보냄</td></tr>
-<tr><td><code>/robot_a/navigate_to_pose</code> (액션)</td><td>nav2_msgs/NavigateToPose</td><td>섹터·이전 좌표·도킹 위치로 이동, 결과 SUCCEEDED로 도착 판정</td></tr>
+<tr><td><code>/robot_a/navigate_to_pose</code> (액션)</td><td>nav2_msgs/NavigateToPose</td><td>섹터·이전 좌표·도킹 위치로 이동, 결과 SUCCEEDED로 도착 판정 (goal checker <code>xy_goal_tolerance</code> 0.15 m)</td></tr>
 <tr><td><code>/robot_a/dock</code>, <code>/robot_a/undock</code> (액션)</td><td>irobot_create_msgs/Dock·Undock</td><td>도킹·언도킹</td></tr>
 <tr><td><code>/robot_a/dock_status</code></td><td>irobot_create_msgs/DockStatus</td><td>도킹 여부(<code>is_docked</code>)</td></tr>
 <tr><td><code>/robot_a/scan</code>, <code>/robot_a/odom</code>, <code>/robot_a/cmd_vel</code>, <code>/robot_a/tf</code></td><td>LaserScan · Odometry · Twist · TF</td><td>위치 추정·Nav2 주행</td></tr>
