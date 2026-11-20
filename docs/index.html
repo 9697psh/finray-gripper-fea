@@ -117,6 +117,15 @@ label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); font-weig
 :root[data-theme="dark"] .cell[class*="k-"] { color: var(--fg); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .cell[class*="k-"] { color: var(--fg); } }
 .now { box-shadow: inset 0 -3px 0 var(--accent); }
+.sched td.ord { padding: 2px 4px; white-space: nowrap; width: 56px; }
+.ordbtn { padding: 0 6px; font-size: 12px; line-height: 20px; height: 22px; min-width: 22px; border-radius: 5px; }
+.ordbtn:disabled { opacity: .25; }
+.cellpick { position: fixed; z-index: 55; background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 6px; display: grid; gap: 6px; box-shadow: 0 6px 24px rgba(0,0,0,.18); min-width: 220px; }
+.cellpick .opts { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.cellpick .cell { height: 30px; border: 1px solid var(--line); }
+.cellpick .cell[aria-pressed="true"] { outline: 2px solid var(--fg); outline-offset: 1px; }
+.cellpick .cell.k-비움 { background: transparent; color: var(--muted); border-style: dashed; }
+.cellpick .lbl { font-size: 11.5px; color: var(--muted); padding: 0 2px; }
 tr.team-B td { opacity: .78; }
 tr.groupsep td { background: var(--panel-2); font-weight: 600; font-size: 12px; color: var(--muted); }
 /* cards */
@@ -383,7 +392,9 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
     else if (S.timedOut && !ready) pre = '<div class="notice warn">저장소 응답이 늦습니다. 잠시 후 자동으로 채워집니다.</div>';
     else if (S.readOnly) pre = '<div class="notice">보기 전용입니다. 기록을 남기려면 왼쪽 아래 [팀 코드 입력]에서 팀 코드를 넣어 주세요.</div>';
     const body = { overview: vOverview, schedule: vSchedule, notes: vNotes, links: vLinks, refs: vRefs, code: vCode, cmds: vCmds, attempts: vAttempts, logs: vLogs, deck: vDeck, task: vOverview }[v === 'task' ? (lastView || 'overview') : v]();
+    const ae = document.activeElement, keep = ae && app.contains(ae) ? (ae.dataset.move ? `[data-move="${CSS.escape(ae.dataset.move)}"]` : ae.dataset.cell ? `[data-cell="${CSS.escape(ae.dataset.cell)}"]` : null) : null;
     app.innerHTML = pre + body;
+    if (keep) { const n = app.querySelector(keep); if (n && !n.disabled) n.focus({ preventScroll: true }); }
     if (v === 'task') openTask(location.hash.slice(6)); else closeSheet();
   }
   let lastView = 'overview';
@@ -450,17 +461,19 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
     const rows = []; let team = null;
     T.forEach(t => {
       const tm = teamOf(t);
-      if (tm !== team) { team = tm; rows.push(`<tr class="groupsep"><td colspan="${4 + 15}">로봇 ${tm}</td></tr>`); }
+      if (tm !== team) { team = tm; rows.push(`<tr class="groupsep"><td colspan="${5 + DAYS.length * 3}">로봇 ${tm}</td></tr>`); }
+      const sib = sortTasks(S.tasks.filter(x => teamOf(x) === tm)), pos = sib.findIndex(x => x.id === t.id);
+      const ord = can ? `<button class="ordbtn" data-move="${esc(t.id)}|-1" ${pos <= 0 ? 'disabled' : ''} aria-label="${esc(t.title)} 위로" title="위로">↑</button> <button class="ordbtn" data-move="${esc(t.id)}|1" ${pos >= sib.length - 1 ? 'disabled' : ''} aria-label="${esc(t.title)} 아래로" title="아래로">↓</button>` : `<span class="small muted">${pos + 1}</span>`;
       const cells = DAYS.map(d => PARTS.map((p, i) => { const k = slotKey(d, i), v = (t.slots || {})[k] || ''; return `<td class="c ${i === 0 ? 'dstart' : ''}"><button class="cell ${v ? 'k-' + v : ''} ${k === ns ? 'now' : ''}" data-cell="${esc(t.id)}|${k}" aria-label="${esc(t.title)} ${labelSlot(k)} ${v || '비어 있음'}">${v}</button></td>`; }).join('')).join('');
       const fresh = t.updatedAt && t.updatedBy && t.updatedBy !== S.me && Date.now() - new Date(t.updatedAt) < 15000 ? 'fresh' : '';
-      rows.push(`<tr class="${fresh}"><td><span class="tag">${esc(t.phase)}</span></td><td class="task"><button data-open="${esc(t.id)}">${esc(t.title)}</button></td>
+      rows.push(`<tr class="${fresh}"><td class="ord">${ord}</td><td><span class="tag">${esc(t.phase)}</span></td><td class="task"><button data-open="${esc(t.id)}">${esc(t.title)}</button></td>
         <td class="small own">${can ? `<input class="inl" data-owner="${esc(t.id)}" value="${esc(t.owner || '')}" aria-label="담당자">` : esc(t.owner || '')}</td>
         <td class="st">${can ? `<select class="inl s-${esc(t.status || '예정')}" data-status="${esc(t.id)}" aria-label="진행 상황">${STATUSES.map(x => `<option ${t.status === x ? 'selected' : ''}>${x}</option>`).join('')}</select>` : `<span class="pill s-${esc(t.status || '예정')}">${esc(t.status || '예정')}</span>`}</td>${cells}</tr>`);
     });
     return `<section class="grid" style="gap:10px">
-      <div class="toolbar"><h2>일정</h2><span class="small muted">담당자·진행 상황은 표에서 바로 고칩니다. 칸을 누르면 계획 → 진행 → 완료 → 예비 → 비움 순으로 바뀌고, 모든 팀원 화면에 바로 반영됩니다.</span>
+      <div class="toolbar"><h2>일정</h2><span class="small muted">칸을 누르면 계획 · 진행 · 완료 · 예비 · 비움 중에서 바로 고릅니다. 왼쪽 ↑↓로 작업 순서를 바꾸고, 담당자·진행 상황은 표에서 바로 고칩니다. 모든 팀원 화면에 바로 반영됩니다.</span>
       <span style="margin-left:auto" class="row">${can ? '<button data-act="newtask">작업 추가</button>' : ''}</span></div>
-      <div class="sched"><table><thead><tr><th rowspan="2">구분</th><th rowspan="2">세부항목</th><th rowspan="2" class="own">담당자</th><th rowspan="2" class="own">진행 상황</th>${head1}</tr><tr>${head2}</tr></thead><tbody>${rows.join('')}</tbody></table></div>
+      <div class="sched"><table><thead><tr><th rowspan="2">순서</th><th rowspan="2">구분</th><th rowspan="2">세부항목</th><th rowspan="2" class="own">담당자</th><th rowspan="2" class="own">진행 상황</th>${head1}</tr><tr>${head2}</tr></thead><tbody>${rows.join('')}</tbody></table></div>
     </section>`;
   }
 
@@ -533,7 +546,7 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
 
   function vCode() {
     const can = db && !S.readOnly, ft = S.codeTask || 'all', q = (S.codeQuery || '').toLowerCase();
-    const C = S.code.filter(recTeamOk).filter(c => (ft === 'all' || c.taskId === ft) && (!q || [c.name, c.path, c.description, c.code, c.runCmd, ...(c.nodes || []).map(n => [n.pkg, n.exec, n.name, n.ns].join(' '))].join(' ').toLowerCase().includes(q)));
+    const C = S.code.filter(recTeamOk).filter(c => (ft === 'all' || c.taskId === ft) && (!q || [c.name, c.path, c.description, c.code, c.runCmd, ...nodesOf(c).map(n => [n.pkg, n.exec, n.name, n.ns].join(' '))].join(' ').toLowerCase().includes(q)));
     const T = teamTasks().filter(t => C.some(c => c.taskId === t.id));
     const total = S.code.filter(recTeamOk).length, fin = S.code.filter(recTeamOk).filter(c => c.status === '최종').length;
     const covered = new Set(S.code.filter(recTeamOk).map(c => c.taskId)).size;
@@ -578,13 +591,15 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
     return hit ? hit.id : null;
   }
   function nodesTable(c) {
-    const ns = c.nodes || []; if (!ns.length) return '';
+    const ns = nodesOf(c); if (!ns.length) return '';
     const missing = ns.filter(n => !n.codeId && n.kind === 'node').length;
     return `<details open><summary class="small">하위 노드 · 포함 런치 ${ns.length}개${missing ? ` <span class="r-부분">(코드 미등록 ${missing})</span>` : ''}</summary><div class="nodes"><table><thead><tr><th>종류</th><th>패키지</th><th>실행 파일 · 런치</th><th>이름 · 네임스페이스</th><th>연결된 사용 코드</th><th>메모</th></tr></thead><tbody>
       ${ns.map(n => { const lc = byId(S.code, n.codeId); return `<tr><td>${n.kind === 'include' ? '포함 런치' : '노드'}</td><td><code>${esc(n.pkg)}</code></td><td><code>${esc(n.exec)}</code></td><td>${esc(n.name)}${n.ns ? ` <span class="muted">${esc(n.ns)}</span>` : ''}</td>
         <td>${lc ? `<button class="ghost small" data-goto-code="${esc(lc.id)}">${esc(lc.name)} · ${esc(lc.status || '')}</button>` : '<span class="tag">코드 미등록</span>'}</td><td class="small">${esc(n.note || '')}</td></tr>`; }).join('')}
       </tbody></table></div></details>`;
   }
+  // nodes may arrive as a JSON string (e.g. "[]") when written outside the page; never let one bad record break the tab
+  const nodesOf = c => { let n = c && c.nodes; if (typeof n === 'string') { try { n = JSON.parse(n); } catch (e) { n = []; } } return Array.isArray(n) ? n.filter(x => x && typeof x === 'object') : []; };
   const versOf = cid => S.codeVersions.filter(v => v.codeId === cid).sort((a, b) => (a.v || 0) - (b.v || 0) || (a.createdAt || '').localeCompare(b.createdAt || ''));
   function versionsHtml(c) {
     const vs = versOf(c.id), can = db && !S.readOnly;
@@ -642,7 +657,7 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
   }
   function codeItem(c) {
     const r = byId(S.refs, c.refId), can = db && !S.readOnly, lines = String(c.code || '').split('\n').length;
-    const usedBy = S.code.filter(x => (x.nodes || []).some(n => n.codeId === c.id));
+    const usedBy = S.code.filter(x => nodesOf(x).some(n => n && n.codeId === c.id));
     return `<article class="item" id="code-${esc(c.id)}"><div class="codehead">${c.ver ? `<span class="ver">v${esc(c.ver)}</span>` : ''}<span class="pill ${codeCls(c.status)}">${esc(c.status || '작성 중')}</span><b>${esc(c.name || '(이름 없음)')}</b>${c.lang ? `<span class="tag">${esc(c.lang)}</span>` : ''}
       <span class="small muted">${esc(authorName(c.updatedBy || c.author))} · ${fmtTime(c.updatedAt || c.createdAt)}</span>
       ${can ? `<span style="margin-left:auto" class="row"><button class="ghost" data-edit-code="${esc(c.id)}">수정</button><button class="ghost" data-del-code="${esc(c.id)}">삭제</button></span>` : ''}</div>
@@ -808,7 +823,7 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
   }
   function logItem(l) {
     const t = byId(S.tasks, l.taskId), a = byId(S.attempts, l.attemptId);
-    return `<article class="item"><header>${t ? badge(t) : ''}<b class="r-${esc(l.result)}">${esc(l.result || '')}</b><code>${esc(l.command || '(명령어 없음)')}</code><span class="small muted">${esc(t ? t.title : '')}${a ? ' · ' + esc(a.title) : ''} · ${esc(authorName(l.author))} · ${fmtTime(l.createdAt)}</span>${db && !S.readOnly ? `<span style="margin-left:auto"><button class="ghost" data-del-log="${esc(l.id)}">삭제</button></span>` : ''}</header>
+    return `<article class="item"><header>${t ? badge(t) : ''}<b class="r-${esc(l.result)}">${esc(l.result || '')}</b><code>${esc(l.command || '(명령어 없음)')}</code><span class="small muted">${esc(t ? t.title : '')}${a ? ' · ' + esc(a.title) : ''} · ${esc(authorName(l.author))} · ${fmtTime(l.createdAt)}${l.updatedAt ? ` · 수정 ${fmtTime(l.updatedAt)}${l.updatedBy ? ' ' + esc(authorName(l.updatedBy)) : ''}` : ''}</span>${db && !S.readOnly ? `<span style="margin-left:auto" class="row"><button class="ghost" data-edit-log="${esc(l.id)}">수정</button><button class="ghost" data-del-log="${esc(l.id)}">삭제</button></span>` : ''}</header>
       ${l.note ? `<div class="small">${esc(l.note)}</div>` : ''}<details ${S.openLog === l.id ? 'open' : ''}><summary class="small">출력 ${String(l.output || '').split('\n').length}줄</summary><pre>${esc(l.output || '')}</pre></details></article>`;
   }
 
@@ -1003,7 +1018,7 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
       $('.del', r).addEventListener('click', () => r.remove());
       $('#nodeRows', form).appendChild(r);
     };
-    (c.nodes || []).forEach(addRow);
+    nodesOf(c).forEach(addRow);
     form.lang.addEventListener('change', () => { $('#nodeBox', form).hidden = form.lang.value !== 'Launch'; });
     $('[data-addnode]', form).addEventListener('click', () => addRow({ kind: 'node' }));
     $('[data-parse]', form).addEventListener('click', () => {
@@ -1020,20 +1035,24 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
       toast(added || filled ? `새 항목 ${added}개 추가${filled ? `, 기존 행 ${filled}칸 채움` : ''}. 연결된 사용 코드를 확인하고 저장하세요.` : '새로 찾은 항목이 없습니다.');
     });
   }
-  function logModal(taskId) {
-    const form = modal(`<h2>실행 로그 추가</h2>
+  function logModal(taskId, existing) {
+    const L = existing || {}; taskId = existing ? L.taskId : taskId;
+    const form = modal(`<h2>${existing ? '실행 로그 수정' : '실행 로그 추가'}</h2>
       <div class="formgrid">
         <label>작업<select name="taskId">${taskOptions(taskId)}</select></label>
-        <label>시도 (선택)<select name="attemptId"><option value="">(연결 안 함)</option>${S.attempts.filter(a => !taskId || a.taskId === taskId).map(a => `<option value="${esc(a.id)}">${esc(a.title)}</option>`).join('')}</select></label>
-        <label class="full">실행한 명령어<input name="command" placeholder="예: ros2 run robot_a sector_patrol --ros-args -r __ns:=/robot3"></label>
-        <label>결과<select name="result"><option>실패</option><option>성공</option></select></label>
-        <label>메모<input name="note" placeholder="예: 2번 섹터 앞에서 Goal ABORTED"></label>
-        <label class="full"><span class="row" style="justify-content:space-between">출력<span><input type="file" id="logFile" accept=".log,.txt,text/plain" style="width:auto"></span></span><textarea name="output" class="code" rows="12" placeholder="터미널 출력을 붙여넣으세요"></textarea></label>
+        <label>시도 (선택)<select name="attemptId"><option value="">(연결 안 함)</option>${S.attempts.filter(a => !taskId || a.taskId === taskId).map(a => `<option value="${esc(a.id)}" ${L.attemptId === a.id ? 'selected' : ''}>${esc(a.title)}</option>`).join('')}</select></label>
+        <label class="full">실행한 명령어<input name="command" value="${esc(L.command || '')}" placeholder="예: ros2 run robot_a sector_patrol --ros-args -r __ns:=/robot3"></label>
+        <label>결과<select name="result">${['실패', '성공'].map(x => `<option ${L.result === x ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
+        <label>메모<input name="note" value="${esc(L.note || '')}" placeholder="예: 2번 섹터 앞에서 Goal ABORTED"></label>
+        <label class="full"><span class="row" style="justify-content:space-between">출력<span><input type="file" id="logFile" accept=".log,.txt,text/plain" style="width:auto"></span></span><textarea name="output" class="code" rows="12" placeholder="터미널 출력을 붙여넣으세요">${esc(L.output || '')}</textarea></label>
+        ${existing ? `<div class="full small muted">처음 기록: ${esc(authorName(L.author))} · ${fmtTime(L.createdAt)}</div>` : ''}
       </div>`, async f => {
       const d = Object.fromEntries(new FormData(f).entries());
       if (!d.output.trim() && !d.command.trim()) { toast('명령어나 출력 중 하나는 있어야 합니다.'); return false; }
       let out = d.output; if (out.length > 120000) out = out.slice(0, 20000) + '\n…(중간 생략)…\n' + out.slice(-80000);
-      return write(() => db.collection('logs').add({ taskId: d.taskId, attemptId: d.attemptId || null, command: d.command, result: d.result, note: d.note, output: out, author: S.me || null, createdAt: new Date().toISOString() }), '로그를 저장했습니다.');
+      const body = { taskId: d.taskId, attemptId: d.attemptId || null, command: d.command, result: d.result, note: d.note, output: out };
+      if (existing) return write(() => db.doc('logs/' + existing.id).update({ ...body, ...stamp() }), '로그를 고쳤습니다.');
+      return write(() => db.collection('logs').add({ ...body, author: S.me || null, createdAt: new Date().toISOString() }), '로그를 저장했습니다.');
     });
     $('#logFile', form).addEventListener('change', e => { const file = e.target.files[0]; if (!file) return; const rd = new FileReader(); rd.onload = () => { form.output.value = String(rd.result); }; rd.readAsText(file); });
     form.taskId.addEventListener('change', () => { form.attemptId.innerHTML = '<option value="">(연결 안 함)</option>' + S.attempts.filter(a => a.taskId === form.taskId.value).map(a => `<option value="${esc(a.id)}">${esc(a.title)}</option>`).join(''); });
@@ -1080,6 +1099,33 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
   }
 
   // ---------- events ----------
+  // ---------- schedule cell picker ----------
+  const PICKS = ['계획', '진행', '완료', '예비', '비움'];
+  function closePicker() { const p = document.querySelector('.cellpick'); if (p) p.remove(); }
+  function refocusCell(id, k) { const c = document.querySelector(`[data-cell="${CSS.escape(id + '|' + k)}"]`); if (c) c.focus(); }
+  function openPicker(anchor, t, k) {
+    const same = document.querySelector('.cellpick'); const wasSame = same && same.dataset.for === t.id + '|' + k; closePicker(); if (wasSame) return;
+    const cur = (t.slots || {})[k] || '';
+    const p = document.createElement('div'); p.className = 'cellpick'; p.dataset.for = t.id + '|' + k; p.dataset.at = Date.now(); p.setAttribute('role', 'dialog'); p.setAttribute('aria-label', '일정 칸 값 고르기');
+    p.innerHTML = `<div class="lbl">${esc(labelSlot(k))} · ${esc(t.title.length > 24 ? t.title.slice(0, 24) + '…' : t.title)}</div><div class="opts">${PICKS.map(v => `<button class="cell k-${v}" data-pick="${esc(t.id)}|${k}|${v}" aria-pressed="${(v === '비움' ? !cur : cur === v) ? 'true' : 'false'}">${v}</button>`).join('')}</div>`;
+    document.body.appendChild(p);
+    const r = anchor.getBoundingClientRect(), w = p.offsetWidth, h = p.offsetHeight;
+    let x = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), window.innerWidth - w - 8), y = r.bottom + 6;
+    if (y + h > window.innerHeight - 8) y = Math.max(8, r.top - h - 6);
+    p.style.left = x + 'px'; p.style.top = y + 'px';
+    const first = p.querySelector('[aria-pressed="true"]') || p.querySelector('button'); if (first) first.focus();
+    p.addEventListener('keydown', ev => {
+      const bs = [...p.querySelectorAll('button')], i = bs.indexOf(document.activeElement);
+      if (ev.key === 'ArrowRight' || ev.key === 'ArrowDown') { ev.preventDefault(); bs[(i + 1) % bs.length].focus(); }
+      if (ev.key === 'ArrowLeft' || ev.key === 'ArrowUp') { ev.preventDefault(); bs[(i - 1 + bs.length) % bs.length].focus(); }
+      if (ev.key === 'Escape') { ev.stopPropagation(); closePicker(); refocusCell(t.id, k); }
+    });
+  }
+  window.addEventListener('resize', closePicker);
+  document.addEventListener('pointerdown', e => { if (!e.target.closest('.cellpick') && !e.target.closest('[data-cell]')) closePicker(); }, true);
+  window.addEventListener('scroll', e => { const pk = document.querySelector('.cellpick'); if (pk && Date.now() - Number(pk.dataset.at || 0) > 400 && !(e.target && e.target.closest && e.target.closest('.cellpick'))) closePicker(); }, true);
+  window.addEventListener('hashchange', closePicker);
+
   document.addEventListener('click', async e => {
     const va = e.target.closest('[data-ver-add]');
     if (va) { verAddModal(va.dataset.verAdd); return; }
@@ -1136,16 +1182,42 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
       setTimeout(() => { const n = document.getElementById('code-' + cid); if (n) { n.scrollIntoView({ block: 'center', behavior: 'smooth' }); n.classList.add('flash'); } }, 120);
       return;
     }
-    const el = e.target.closest('[data-open],[data-close],[data-cell],[data-act],[data-save-task],[data-edit-attempt],[data-del-log],[data-edit-code],[data-del-code]');
+    const pk = e.target.closest('[data-pick]');
+    if (pk) {
+      const [id, k, val] = pk.dataset.pick.split('|'); const t = byId(S.tasks, id); closePicker(); if (!t) return;
+      const cur = (t.slots || {})[k] || ''; const nxt = val === '비움' ? '' : val;
+      if (cur === nxt) return;
+      // update() merges nested objects, so an emptied cell must be written as '' (dropping the key would keep the old value)
+      const slots = { ...(t.slots || {}), [k]: nxt };
+      const prev = t.slots; t.slots = slots; render(); refocusCell(id, k);
+      const ok = await write(() => db.doc('tasks/' + id).update({ slots: { [k]: nxt }, ...stamp() }));
+      if (!ok) { t.slots = prev; render(); }
+      return;
+    }
+    const mv = e.target.closest('[data-move]');
+    if (mv) {
+      if (!db || S.readOnly) { toast('순서를 바꾸려면 저장 권한이 필요합니다.'); return; }
+      const [id, dir] = mv.dataset.move.split('|'); const t = byId(S.tasks, id); if (!t) return;
+      const sib = sortTasks(S.tasks.filter(x => teamOf(x) === teamOf(t))), i = sib.findIndex(x => x.id === id), j = i + Number(dir);
+      if (i < 0 || j < 0 || j >= sib.length) return;
+      [sib[i], sib[j]] = [sib[j], sib[i]];
+      const changed = sib.map((x, n) => ({ x, n: n + 1 })).filter(({ x, n }) => (x.order || 0) !== n);
+      const before = changed.map(({ x }) => [x, x.order]); changed.forEach(({ x, n }) => { x.order = n; });
+      render(true);
+      const again = document.querySelector(`[data-move="${CSS.escape(id + '|' + dir)}"]`), other = document.querySelector(`[data-move="${CSS.escape(id + '|' + (-dir))}"]`);
+      (again && !again.disabled ? again : other) && (again && !again.disabled ? again : other).focus();
+      const ok = await write(() => Promise.all(changed.map(({ x, n }) => db.doc('tasks/' + x.id).update({ order: n, ...stamp() }))));
+      if (!ok) { before.forEach(([x, o]) => { x.order = o; }); render(); }
+      return;
+    }
+    const el = e.target.closest('[data-open],[data-close],[data-cell],[data-act],[data-save-task],[data-edit-attempt],[data-edit-log],[data-del-log],[data-edit-code],[data-del-code]');
     if (!el) return;
     if (el.dataset.open) { lastView = view() === 'task' ? lastView : view(); location.hash = 'task-' + el.dataset.open; return; }
     if (el.dataset.close) { location.hash = lastView; return; }
     if (el.dataset.cell) {
       if (!db || S.readOnly) { toast('일정을 바꾸려면 저장 권한이 필요합니다.'); return; }
       const [id, k] = el.dataset.cell.split('|'); const t = byId(S.tasks, id); if (!t) return;
-      const cur = (t.slots || {})[k] || ''; const nxt = CELL_CYCLE[(CELL_CYCLE.indexOf(cur) + 1) % CELL_CYCLE.length];
-      const slots = { ...(t.slots || {}) }; if (nxt) slots[k] = nxt; else delete slots[k];
-      await write(() => db.doc('tasks/' + id).update({ slots: slots, ...stamp() }));
+      openPicker(el, t, k);
       return;
     }
     if (el.dataset.saveTask) {
@@ -1156,6 +1228,7 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
     if (el.dataset.editCode) { codeModal(null, byId(S.code, el.dataset.editCode)); return; }
     if (el.dataset.delCode) { if (el.dataset.confirm !== '1') { el.dataset.confirm = '1'; el.textContent = '한 번 더 누르면 삭제'; setTimeout(() => { el.dataset.confirm = ''; el.textContent = '삭제'; }, 3000); return; } await write(() => db.doc('code/' + el.dataset.delCode).delete(), '사용 코드를 삭제했습니다.'); return; }
     if (el.dataset.editAttempt) { attemptModal(null, byId(S.attempts, el.dataset.editAttempt)); return; }
+    if (el.dataset.editLog) { const l = byId(S.logs, el.dataset.editLog); if (l) logModal(null, l); return; }
     if (el.dataset.delLog) { if (el.dataset.confirm !== '1') { el.dataset.confirm = '1'; el.textContent = '한 번 더 누르면 삭제'; setTimeout(() => { el.dataset.confirm = ''; el.textContent = '삭제'; }, 3000); return; } await write(() => db.doc('logs/' + el.dataset.delLog).delete(), '로그를 삭제했습니다.'); return; }
     const act = el.dataset.act;
     if (act === 'newattempt') attemptModal(el.dataset.task || (view() === 'task' ? location.hash.slice(6) : null));

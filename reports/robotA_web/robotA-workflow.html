@@ -520,7 +520,7 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
 
   function vCode() {
     const can = db && !S.readOnly, ft = S.codeTask || 'all', q = (S.codeQuery || '').toLowerCase();
-    const C = S.code.filter(recTeamOk).filter(c => (ft === 'all' || c.taskId === ft) && (!q || [c.name, c.path, c.description, c.code, c.runCmd, ...(c.nodes || []).map(n => [n.pkg, n.exec, n.name, n.ns].join(' '))].join(' ').toLowerCase().includes(q)));
+    const C = S.code.filter(recTeamOk).filter(c => (ft === 'all' || c.taskId === ft) && (!q || [c.name, c.path, c.description, c.code, c.runCmd, ...nodesOf(c).map(n => [n.pkg, n.exec, n.name, n.ns].join(' '))].join(' ').toLowerCase().includes(q)));
     const T = teamTasks().filter(t => C.some(c => c.taskId === t.id));
     const total = S.code.filter(recTeamOk).length, fin = S.code.filter(recTeamOk).filter(c => c.status === '최종').length;
     const covered = new Set(S.code.filter(recTeamOk).map(c => c.taskId)).size;
@@ -565,13 +565,15 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
     return hit ? hit.id : null;
   }
   function nodesTable(c) {
-    const ns = c.nodes || []; if (!ns.length) return '';
+    const ns = nodesOf(c); if (!ns.length) return '';
     const missing = ns.filter(n => !n.codeId && n.kind === 'node').length;
     return `<details open><summary class="small">하위 노드 · 포함 런치 ${ns.length}개${missing ? ` <span class="r-부분">(코드 미등록 ${missing})</span>` : ''}</summary><div class="nodes"><table><thead><tr><th>종류</th><th>패키지</th><th>실행 파일 · 런치</th><th>이름 · 네임스페이스</th><th>연결된 사용 코드</th><th>메모</th></tr></thead><tbody>
       ${ns.map(n => { const lc = byId(S.code, n.codeId); return `<tr><td>${n.kind === 'include' ? '포함 런치' : '노드'}</td><td><code>${esc(n.pkg)}</code></td><td><code>${esc(n.exec)}</code></td><td>${esc(n.name)}${n.ns ? ` <span class="muted">${esc(n.ns)}</span>` : ''}</td>
         <td>${lc ? `<button class="ghost small" data-goto-code="${esc(lc.id)}">${esc(lc.name)} · ${esc(lc.status || '')}</button>` : '<span class="tag">코드 미등록</span>'}</td><td class="small">${esc(n.note || '')}</td></tr>`; }).join('')}
       </tbody></table></div></details>`;
   }
+  // nodes may arrive as a JSON string (e.g. "[]") when written outside the page; never let one bad record break the tab
+  const nodesOf = c => { let n = c && c.nodes; if (typeof n === 'string') { try { n = JSON.parse(n); } catch (e) { n = []; } } return Array.isArray(n) ? n.filter(x => x && typeof x === 'object') : []; };
   const versOf = cid => S.codeVersions.filter(v => v.codeId === cid).sort((a, b) => (a.v || 0) - (b.v || 0) || (a.createdAt || '').localeCompare(b.createdAt || ''));
   function versionsHtml(c) {
     const vs = versOf(c.id), can = db && !S.readOnly;
@@ -629,7 +631,7 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
   }
   function codeItem(c) {
     const r = byId(S.refs, c.refId), can = db && !S.readOnly, lines = String(c.code || '').split('\n').length;
-    const usedBy = S.code.filter(x => (x.nodes || []).some(n => n.codeId === c.id));
+    const usedBy = S.code.filter(x => nodesOf(x).some(n => n && n.codeId === c.id));
     return `<article class="item" id="code-${esc(c.id)}"><div class="codehead">${c.ver ? `<span class="ver">v${esc(c.ver)}</span>` : ''}<span class="pill ${codeCls(c.status)}">${esc(c.status || '작성 중')}</span><b>${esc(c.name || '(이름 없음)')}</b>${c.lang ? `<span class="tag">${esc(c.lang)}</span>` : ''}
       <span class="small muted">${esc(authorName(c.updatedBy || c.author))} · ${fmtTime(c.updatedAt || c.createdAt)}</span>
       ${can ? `<span style="margin-left:auto" class="row"><button class="ghost" data-edit-code="${esc(c.id)}">수정</button><button class="ghost" data-del-code="${esc(c.id)}">삭제</button></span>` : ''}</div>
@@ -990,7 +992,7 @@ tr.fresh td { animation: fresh 2.4s ease-out; }
       $('.del', r).addEventListener('click', () => r.remove());
       $('#nodeRows', form).appendChild(r);
     };
-    (c.nodes || []).forEach(addRow);
+    nodesOf(c).forEach(addRow);
     form.lang.addEventListener('change', () => { $('#nodeBox', form).hidden = form.lang.value !== 'Launch'; });
     $('[data-addnode]', form).addEventListener('click', () => addRow({ kind: 'node' }));
     $('[data-parse]', form).addEventListener('click', () => {
