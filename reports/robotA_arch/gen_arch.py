@@ -91,7 +91,7 @@ OUR_C, OUR_F = '#6A4BB0', '#F4F0FB'
 
 # ---------- title & legend ----------
 box(40, 18, 760, 30, '<b style="font-size:20px">로봇 A 시스템 설계도</b>'
-    '<span style="font-size:13px;color:#555">  TurtleBot4 · ROS 2 Jazzy · namespace /robot_a · 토픽명은 팀별 토픽 요청서 기준</span>', TEXT)
+    '<span style="font-size:13px;color:#555">  TurtleBot4 · ROS 2 Jazzy · namespace /robot5 · 이름은 최종 코드(robot_a_navigation) 기준</span>', TEXT)
 for i, (col, dsh, wd, txt) in enumerate([(RED, False, 2, '외부 → PC (입력)'), (BLUE, False, 2, 'PC → 외부 (출력)'),
                                          (INK, False, 2, 'PC 내부 흐름'), (NAV_C, False, 3, 'Nav2 이동 요청 (goal ↔ result)'),
                                          (RED, True, 2, '점선 = SERVER와 주고받음'), (GREY, True, 2, '선택 · 미사용')]):
@@ -102,7 +102,7 @@ for i, (col, dsh, wd, txt) in enumerate([(RED, False, 2, '외부 → PC (입력)
 
 # ---------- external (left) ----------
 # Robot A — what actually runs on the TurtleBot4 (turtlebot4_bringup standard.launch.py on the Pi + Create 3 firmware)
-ROBOT = box(30, 105, 280, 452, '<b>로봇 A · TurtleBot4</b>  <span style="font-weight:normal;font-size:11px">(/robot_a)</span>',
+ROBOT = box(30, 105, 280, 452, '<b>로봇 A · TurtleBot4</b>  <span style="font-weight:normal;font-size:11px">(/robot5)</span>',
             S(rounded=1, whiteSpace='wrap', html=1, fillColor='#F4F4F4', strokeColor=INK, strokeWidth=2, fontSize=14, fontColor='#1A1A1A',
               align='center', verticalAlign='top', spacingTop=2, arcSize=4))
 SUBG = lambda title: S(rounded=1, whiteSpace='wrap', html=1, fillColor='#FFFFFF', strokeColor='#888888', strokeWidth=1, dashed=1, fontSize=10,
@@ -113,13 +113,13 @@ RN = lambda col='#555555', fill='#FFFFFF': S(rounded=1, whiteSpace='wrap', html=
                                             fontColor='#1A1A1A', align='left', verticalAlign='middle', spacingLeft=6, arcSize=10)
 RSP = box(48, 150, 244, 38, '<b>robot_state_publisher</b> · joint_state_publisher<br>→ /tf_static (라이다 · 카메라 위치)', RN())
 LID = box(48, 194, 244, 40, '<b>rplidar_composition</b> (rplidar_ros)<br>라이다 드라이버 → /scan', RN())
-REP = box(48, 240, 244, 40, '<b>create3_republisher</b><br>Create 3 토픽·액션을 /robot_a/… 로 중계', RN())
+REP = box(48, 240, 244, 40, '<b>create3_republisher</b><br>Create 3 토픽·액션을 /robot5/… 로 중계', RN())
 box(48, 286, 244, 32, 'turtlebot4_node · base_node  <span style="color:#777">버튼 · 화면 · LED</span>', RN('#AAAAAA', '#FAFAFA'))
 OAK = box(48, 324, 244, 66, '<b>oakd</b> (depthai_ros_driver)<br>카메라 드라이버 · 이미지를 <b>계속</b> 발행<br>/oakd/rgb/preview/image_raw', RN())
 C1 = box(48, 422, 244, 38, '<b>바퀴 구동 · 주행거리</b><br>/cmd_vel 구독 → /odom · TF odom→base_link', RN())
 C2 = box(48, 466, 244, 38, '<b>도킹</b><br>/dock · /undock 액션 서버 · /dock_status', RN())
 C3 = box(48, 510, 244, 32, '<b>배터리 · 안전 센서</b>  /battery_state · /hazard_detection', RN())
-MON = box(40, 572, 268, 150, '<b style="font-size:13px">System Monitor</b> <span style="font-size:10px">(모니터링팀)</span><br><span style="font-size:9.5px;color:#C0392B">구독하는 로봇 A 토픽 (6개)</span><span style="font-size:9px"><br><b>/robot_a/status</b> <span style="color:#666">String(JSON) · 주행·작업 상태</span><br><b>/robot_a/battery_state</b> <span style="color:#666">BatteryState · 배터리</span><br><b>/robot_a/current_zone</b> <span style="color:#666">String · 현재 탐색 구역</span><br><b>/robot_a/detection_image</b> <span style="color:#666">CompressedImage · 사진 352×352</span><br><b>/robot_a/zone_result</b> <span style="color:#666">String(JSON) · 구역 이력·진행률</span><br><b>/robot_a/amcl_pose</b> <span style="color:#666">PoseWithCovarianceStamped (amcl)</span></span><br><span style="font-size:8.5px;color:#666">숙과·미숙과·병충해 수는 서버 비전팀 · 공통 지도는 제외</span>', S(rounded=0, whiteSpace='wrap', html=1, fillColor='#F4F4F4', strokeColor=INK, strokeWidth=2, fontSize=9, fontColor='#1A1A1A', align='left', verticalAlign='middle', spacingLeft=6))
+MON = box(40, 572, 268, 130, '<b style="font-size:13px">System Monitor</b> <span style="font-size:10px">(모니터링팀)</span><br><span style="font-size:9.5px;color:#C0392B">받는 로봇 A 정보 (통합 설계 최종본 기준)</span><span style="font-size:9px"><br><b>mission_cmd feedback</b> <span style="color:#666">1초 · state · zone · 진행 수</span><br><b>/farm/robot_a/cmd_ack</b> <span style="color:#666">강제 도킹 응답</span><br><b>/robot5/battery_state</b> <span style="color:#666">BatteryState (로봇이 직접 발행)</span><br><b>/robot5/amcl_pose</b> <span style="color:#666">위치 · 미니맵 (amcl 발행)</span></span><br><span style="font-size:8.5px;color:#666">사진·탐지 결과는 SERVER(DB)에서 조회</span>', S(rounded=0, whiteSpace='wrap', html=1, fillColor='#F4F4F4', strokeColor=INK, strokeWidth=2, fontSize=9, fontColor='#1A1A1A', align='left', verticalAlign='middle', spacingLeft=6))
 DET = box(40, 1505, 220, 70, t('Detect', '비전 인식 팀 (YOLO)', sub=11), EXT)
 SM = box(40, 850, 220, 620, t('SERVER', '', '작업 지시', '결과 저장', '재방문 목록', '(remission_list)', 'B 작업 상태', sub=11), EXT)
 edge(SM, MON, '전달', color=RED, dashed=True, ex=0.5, ey=0, nx=round((150 - 40) / 268, 4), ny=1, font=10)
@@ -168,7 +168,7 @@ edge(VEL, COLL, color=INK, ex=0, ey=0.4, nx=1, ny=0.4, width=1.5)
 edge(WPF, BT, label='', color=INK, ex=0, ey=0.5, nx=1, ny=round((520 - 412) / 264, 4), width=1.5)
 
 # Our logic — ① 탐색 (patrol) and ② 재탐색 (re-patrol) from the team's hand-drawn flowcharts; each step is tagged with what it talks to
-LOGIC = box(400, 800, 1240, 1030, '우리의 로직  <span style="font-weight:normal;font-size:12px">Robot A 미션 흐름 · ① 탐색 → ② 재탐색</span>',
+LOGIC = box(400, 800, 1258, 1030, '우리의 로직  <span style="font-weight:normal;font-size:12px">robot_a_navigation (실행: robot_a_all.launch.py) · ① 탐색 a_mission → ② 재탐색 a_remission</span>',
             group(OUR_C, OUR_F, align='right').replace('verticalAlign=top', 'verticalAlign=bottom').replace('spacingTop=4', 'spacingBottom=6'))
 G_, R_, B_, K_ = NAV_C, RED, BLUE, '#666666'
 def tg(txt, col): return f'<br><span style="font-size:9.5px;color:{col}">{txt}</span>'
@@ -188,22 +188,22 @@ def go(a_, b_, label='', **kw):
 
 # ---------- ① 탐색 ----------
 lb(430, 806, 400, '<b>① 탐색</b>  <span style="font-size:11px;color:#666">순찰 명령 · 섹터 A1 → A4</span>', size=13)
-P0 = st(430, 845, 140, 50, '명령 확인', ('← /robot_a/mission_cmd', R_))
-P1 = dc(596, 832, 160, 76, '<b>docking?</b>', ('/robot_a/dock_status', R_))
-P2 = st(780, 845, 140, 50, 'undock', ('→ /robot_a/undock', B_))
+P0 = st(430, 845, 140, 50, '명령 확인', ('← /robot5/mission_cmd', R_))
+P1 = dc(596, 832, 160, 76, '<b>docking?</b>', ('/robot5/dock_status', R_))
+P2 = st(780, 845, 140, 50, 'undock', ('→ /robot5/undock', B_))
 P3 = st(960, 845, 140, 50, '순찰 실행', ('섹터 좌표 목록', K_), col='#C0392B')
 P4 = st(430, 965, 150, 50, '순찰 좌표로 이동', ('→ Nav2: goal', G_))
 P5 = dc(600, 948, 170, 84, 'Nav2 결과<br><b>SUCCEEDED?</b>', ('허용 오차 0.15 m', G_))
 P6 = st(785, 963, 160, 54, '정지 후 사진 캡처', ('← Bot: 카메라 → 352×352', R_))
-P7 = st(975, 955, 190, 70, '이미지 · 위치 · 섹터 · 시각<br>서버에 전송 (352×352)', ('→ /robot_a/detection_image', B_), ('→ /robot_a/capture_info', B_))
-P8 = dc(1185, 950, 170, 80, '배터리<br>20% 이하?', ('/robot_a/battery_state', R_))
-P9 = st(1380, 960, 200, 60, '작업 저장 후 복귀 (도킹)', ('작업 위치 저장', K_), ('→ Nav2 · /robot_a/dock', B_))
+P7 = st(975, 955, 190, 70, '이미지 · 위치 · 섹터 · 시각<br>서버에 전송 (352×352)', ('→ /robot5/detection_image', B_), ('→ /robot5/capture_info', B_))
+P8 = dc(1185, 950, 170, 80, '배터리<br>20% 이하?', ('/robot5/battery_state', R_))
+P9 = st(1380, 960, 200, 60, '작업 저장 후 복귀 (도킹)', ('작업 위치 저장', K_), ('→ Nav2 · /robot5/dock', B_))
 P12 = dc(615, 1060, 140, 70, '재탐색<br>3회 초과?')
 P10 = dc(1200, 1060, 140, 70, '섹터 모두<br>방문?')
 P13 = dc(615, 1160, 140, 70, '현재 위치<br>A1?')
 P14 = st(430, 1170, 150, 50, '도킹 위치로 이동', ('(0, 0, 0) · → Nav2', G_))
 P15 = st(790, 1170, 150, 50, '이전 좌표로 이동', ('→ Nav2: goal', G_))
-P11 = st(1195, 1165, 150, 56, 'docking으로 이동', ('→ Nav2 · /robot_a/dock', B_))
+P11 = st(1195, 1165, 150, 56, 'docking으로 이동', ('→ Nav2 · /robot5/dock', B_))
 C2a = cc(1370, 1178, '②'); lb(1405, 1184, 200, '재순찰 명령 실행', size=11)
 CA1 = cc(1465, 1040, 'A'); lb(1500, 1046, 130, '충전 후 이전 좌표로', size=9.5, col='#666')
 CA2 = cc(955, 1180, 'A')
@@ -232,21 +232,21 @@ go(CB1, P9, ex=0.5, ey=1, nx=0.5, ny=0)
 edge(None, None, color='#B9A9D9', dashed=True, end='none', width=1.2, spt=(410, 1288), tpt=(1630, 1288))
 lb(520, 1300, 520, '<b>② 재탐색</b>  <span style="font-size:11px;color:#666">재순찰 명령 실행 · SERVER가 보낸 B 순찰 구역</span>', size=13)
 C2b = cc(485, 1300, '②')
-R0 = dc(420, 1352, 170, 76, '받은 데이터 있음?', ('← /robot_a/remission_list', R_))
+R0 = dc(420, 1352, 170, 76, '받은 데이터 있음?', ('← /robot5/remission_list', R_))
 R2 = st(600, 1365, 170, 50, 'remission_list에<br>재순찰 구역 저장')
 R3 = st(800, 1365, 150, 50, '순찰 좌표로 이동', ('→ Nav2: goal', G_))
 R4 = dc(970, 1348, 160, 84, 'Nav2 결과<br><b>SUCCEEDED?</b>', ('허용 오차 0.15 m', G_))
 R5 = st(1145, 1358, 175, 64, '정지 후 사진 캡처', ('← Bot: 카메라 → 352×352', R_), ('list에서 방문 위치 업데이트', K_))
 R6 = st(1345, 1352, 210, 76, '이미지 · 위치 · 섹터 · 시각<br>서버에 전송 (352×352)', ('→ detection_image · capture_info', B_), ('mode = recheck', B_))
-R1 = st(430, 1470, 150, 50, 'docking station<br>이동 · 대기', ('→ Nav2 · /robot_a/dock', B_))
+R1 = st(430, 1470, 150, 50, 'docking station<br>이동 · 대기', ('→ Nav2 · /robot5/dock', B_))
 R11 = dc(985, 1460, 130, 70, '재탐색<br>3회 초과?')
-R7 = dc(1365, 1455, 170, 80, '배터리<br>20% 이하?', ('/robot_a/battery_state', R_))
+R7 = dc(1365, 1455, 170, 80, '배터리<br>20% 이하?', ('/robot5/battery_state', R_))
 CB2 = cc(1550, 1480, 'B')
 R13 = st(800, 1580, 150, 50, '전 위치로 이동', ('→ Nav2: goal', G_))
 R12 = dc(985, 1570, 130, 70, '현 위치<br>A1?')
 R8 = dc(1380, 1570, 140, 70, 'remission_list에<br>남은 좌표?')
 R10 = dc(1180, 1680, 140, 70, '리스트에<br>좌표 있음?')
-R9 = st(1370, 1690, 170, 50, '30초 동안<br>자리에서 수신 대기', ('← /robot_a/remission_list', R_))
+R9 = st(1370, 1690, 170, 50, '30초 동안<br>자리에서 수신 대기', ('← /robot5/remission_list', R_))
 PUBN = box(1170, 1755, 300, 42, '<b>토픽 발행 시점 (안)</b><br>status: 상태 바뀔 때 · current_zone: 섹터 이동 시작<br>detection_image·capture_info·zone_result: 사진 촬영 후', node('#1F5FD6', '#EEF3FC', fs=9))
 SAFE = box(430, 1765, 720, 40, '<b>상시 감시 (전 과정)</b>  비상정지 → 즉시 정지 · 통신 3초 끊김 → 정지 · 배터리는 흐름 안에서 확인',
            node('#B58A00', '#FFFBEA', fs=11))
@@ -271,44 +271,44 @@ go(R13, R3, ex=round((850 - 800) / 150, 4), ey=0, nx=round((850 - 800) / 150, 4)
 go(R12, R1, 'yes', ex=0.5, ey=1, nx=round((530 - 430) / 150, 4), ny=1, points=((1050, 1660), (530, 1660)), lx=-0.3)
 
 # logic → Nav2: every '→ Nav2' step sends a NavigateToPose goal to bt_navigator
-edge(None, BT, '→ Nav2 단계마다 goal ↔ result · /robot_a/navigate_to_pose<br>(nav2_msgs/NavigateToPose · 순찰 좌표 · 이전 좌표 · 도킹 위치)', color=NAV_C, width=2.5, font=11, both=True,
+edge(None, BT, '→ Nav2 단계마다 goal ↔ result · /robot5/navigate_to_pose<br>(nav2_msgs/NavigateToPose · 순찰 좌표 · 이전 좌표 · 도킹 위치)', color=NAV_C, width=2.5, font=11, both=True,
      nx=round((1350 - 1265) / 170, 4), ny=1, spt=(1350, 800), loff=(0, 0))
 
 # localization internals & interplay
 edge(MAP, AMCL, color=INK, ex=0, ey=0.375, nx=1, ny=0.375, width=1.5)
-edge(RVIZ, AMCL, label='/robot_a/initialpose', color=INK, ex=0, ey=round((165 - 140) / 70, 4), nx=0.5, ny=0,
+edge(RVIZ, AMCL, label='/robot5/initialpose', color=INK, ex=0, ey=round((165 - 140) / 70, 4), nx=0.5, ny=0,
      points=((530, 165),), width=1.5, lx=0.3)
 edge(LOC, NAV, label='/map → global costmap<br>TF map→odom (로봇 위치)', color=INK, ex=round((780 - 400) / 600, 4), ey=1,
      nx=round((780 - 400) / 1240, 4), ny=0, width=2.5, font=11, loff=(95, 0))
 
 # Robot nodes <-> Localization / Nav2
 ry = lambda node_y, h, y: round((y - node_y) / h, 4)
-edge(RSP, LOC, '/robot_a/tf_static', color=RED, ex=1, ey=ry(150, 38, 169), nx=0, ny=round((169 - 120) / 210, 4), lx=0.1, loff=(0, -9), font=10)
-edge(LID, AMCL, '/robot_a/scan', color=RED, ex=1, ey=ry(194, 40, 205), nx=0, ny=round((205 - 185) / 80, 4), lx=0.1, loff=(0, -9), font=10)
-edge(LID, NAV, '/robot_a/scan (costmap · collision_monitor)', color=RED, ex=1, ey=ry(194, 40, 224), nx=round((410 - 400) / 1240, 4), ny=0,
+edge(RSP, LOC, '/robot5/tf_static', color=RED, ex=1, ey=ry(150, 38, 169), nx=0, ny=round((169 - 120) / 210, 4), lx=0.1, loff=(0, -9), font=10)
+edge(LID, AMCL, '/robot5/scan', color=RED, ex=1, ey=ry(194, 40, 205), nx=0, ny=round((205 - 185) / 80, 4), lx=0.1, loff=(0, -9), font=10)
+edge(LID, NAV, '/robot5/scan (costmap · collision_monitor)', color=RED, ex=1, ey=ry(194, 40, 224), nx=round((410 - 400) / 1240, 4), ny=0,
      points=((410, 224),), lx=0.7, loff=(95, 0), font=10)
-edge(C1, NAV, '/robot_a/odom · TF odom→base_link', color=RED, ex=1, ey=ry(422, 38, 434), nx=0, ny=round((434 - 380) / 380, 4), lx=0.1, loff=(0, -9), font=10)
-edge(COLL, C1, '/robot_a/cmd_vel', color=BLUE, ex=0, ey=0.5, nx=1, ny=ry(422, 38, 452), points=((408, 585), (408, 452)), lx=0.75, loff=(0, 9), width=2.5, font=11)
+edge(C1, NAV, '/robot5/odom · TF odom→base_link', color=RED, ex=1, ey=ry(422, 38, 434), nx=0, ny=round((434 - 380) / 380, 4), lx=0.1, loff=(0, -9), font=10)
+edge(COLL, C1, '/robot5/cmd_vel', color=BLUE, ex=0, ey=0.5, nx=1, ny=ry(422, 38, 452), points=((408, 585), (408, 452)), lx=0.75, loff=(0, 9), width=2.5, font=11)
 
 # Robot nodes <-> logic (group level; each step's tag says which one it uses)
-edge(OAK, LOGIC, '/robot_a/oakd/rgb/preview/image_raw (sensor_msgs/Image)', color=RED, ex=1, ey=ry(324, 66, 386), nx=round((880 - 400) / 1240, 4), ny=0,
+edge(OAK, LOGIC, '/robot5/oakd/rgb/preview/image_raw/compressed (찍을 때만 구독)', color=RED, ex=1, ey=ry(324, 66, 386), nx=round((880 - 400) / 1240, 4), ny=0,
      points=((394, 386), (394, 764), (880, 764)), lx=0.3, loff=(0, -9), font=10)
-edge(C2, LOGIC, '/robot_a/undock · dock · dock_status (irobot_create_msgs)', color=BLUE, both=True, ex=1, ey=ry(466, 38, 485), nx=round((760 - 400) / 1240, 4), ny=0,
+edge(C2, LOGIC, '/robot5/undock · dock · dock_status (irobot_create_msgs)', color=BLUE, both=True, ex=1, ey=ry(466, 38, 485), nx=round((760 - 400) / 1240, 4), ny=0,
      points=((382, 485), (382, 773), (760, 773)), lx=0.35, loff=(0, 9), font=10)
-edge(C3, LOGIC, '/robot_a/battery_state (sensor_msgs/BatteryState)', color=RED, ex=1, ey=ry(510, 32, 526), nx=round((640 - 400) / 1240, 4), ny=0,
+edge(C3, LOGIC, '/robot5/battery_state (sensor_msgs/BatteryState)', color=RED, ex=1, ey=ry(510, 32, 526), nx=round((640 - 400) / 1240, 4), ny=0,
      points=((370, 526), (370, 790), (640, 790)), lx=0.55, loff=(0, 9), font=10)
 
 # SERVER <-> logic (group level, dashed)
 sy = lambda y: round((y - 850) / 620, 4)
 SMD = dict(dashed=True, font=10)
-edge(SM, LOGIC, '/robot_a/mission_cmd<br>/robot_a/remission_list', color=RED, dashed=True, ex=1, ey=sy(880), nx=0, ny=round((880 - 800) / 1030, 4),
-     lx=0, loff=(0, -22), font=10)
-edge(LOGIC, SM, '/robot_a/detection_image<br>(352×352)<br>/robot_a/capture_info', color=BLUE, dashed=True, ex=0, ey=round((1010 - 800) / 1030, 4), nx=1, ny=sy(1010),
-     lx=0, loff=(0, 30), font=10)
+edge(SM, LOGIC, '/robot5/mission_cmd (액션)<br>/robot5/remission_list (서비스)<br>/farm/robot_a/force_dock', color=RED, dashed=True, ex=1, ey=sy(880), nx=0, ny=round((880 - 800) / 1030, 4),
+     lx=0, loff=(0, -30), font=9.5)
+edge(LOGIC, SM, '/farm/robot_a/work_photo (352×352)<br>arrival · arrival_error<br>recheck_photo · recheck_arrival<br>cmd_ack', color=BLUE, dashed=True, ex=0, ey=round((1010 - 800) / 1030, 4), nx=1, ny=sy(1010),
+     lx=0, loff=(0, 38), font=9.5)
 
 # Robot A topics → System Monitor (monitoring team subscribes directly)
 PCB = [l for l in cells if 'PC  (원격 PC' in l][0].split('id="')[1].split('"')[0]
-edge(PCB, MON, '토픽<br>발행', color=BLUE, ex=0, ey=round((700 - 80) / 1780, 4), nx=1, ny=round((700 - 572) / 150, 4), font=9.5, lx=0, loff=(0, 0))
+edge(PCB, MON, '토픽<br>발행', color=BLUE, ex=0, ey=round((660 - 80) / 1780, 4), nx=1, ny=round((660 - 572) / 130, 4), font=9.5, lx=0, loff=(0, 0))
 edge(C3, MON, '', color=BLUE, ex=0.18, ey=1, nx=round((92 - 40) / 268, 4), ny=0, font=9.5, loff=(-2, 0))
 
 # SM <-> Detect
