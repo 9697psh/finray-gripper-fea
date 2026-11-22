@@ -119,7 +119,7 @@ OAK = box(48, 324, 244, 66, '<b>oakd</b> (depthai_ros_driver)<br>카메라 드�
 C1 = box(48, 422, 244, 38, '<b>바퀴 구동 · 주행거리</b><br>/cmd_vel 구독 → /odom · TF odom→base_link', RN())
 C2 = box(48, 466, 244, 38, '<b>도킹</b><br>/dock · /undock 액션 서버 · /dock_status', RN())
 C3 = box(48, 510, 244, 32, '<b>배터리 · 안전 센서</b>  /battery_state · /hazard_detection', RN())
-MON = box(40, 572, 268, 130, '<b style="font-size:13px">System Monitor</b> <span style="font-size:10px">(모니터링팀)</span><br><span style="font-size:9.5px;color:#C0392B">받는 로봇 A 정보 (통합 설계 최종본 기준)</span><span style="font-size:9px"><br><b>mission_cmd feedback</b> <span style="color:#666">1초 · state · zone · 진행 수</span><br><b>/farm/robot_a/cmd_ack</b> <span style="color:#666">강제 도킹 응답</span><br><b>/robot5/battery_state</b> <span style="color:#666">BatteryState (로봇이 직접 발행)</span><br><b>/robot5/amcl_pose</b> <span style="color:#666">위치 · 미니맵 (amcl 발행)</span></span><br><span style="font-size:8.5px;color:#666">사진·탐지 결과는 SERVER(DB)에서 조회</span>', S(rounded=0, whiteSpace='wrap', html=1, fillColor='#F4F4F4', strokeColor=INK, strokeWidth=2, fontSize=9, fontColor='#1A1A1A', align='left', verticalAlign='middle', spacingLeft=6))
+MON = box(40, 572, 268, 142, '<b style="font-size:13px">System Monitor</b> <span style="font-size:10px">(모니터링팀)</span><br><span style="font-size:9.5px;color:#C0392B">받는 로봇 A 정보 (통합 설계 최종본 기준)</span><span style="font-size:9px"><br><b>mission_cmd feedback</b> <span style="color:#666">1초 · state · zone · 진행 수</span><br><b>/farm/robot_a/cmd_ack</b> <span style="color:#666">강제 도킹 응답</span><br><b>/robot5/battery_state</b> <span style="color:#666">BatteryState (로봇이 직접 발행)</span><br><b>/robot5/amcl_pose</b> <span style="color:#666">위치 · 미니맵 (amcl 발행)</span><br><span style="color:#C0392B">보냄 →</span> <b>/farm/robot_a/force_next_sector</b> <span style="color:#666">버튼</span></span><br><span style="font-size:8.5px;color:#666">사진·탐지 결과는 SERVER(DB)에서 조회</span>', S(rounded=0, whiteSpace='wrap', html=1, fillColor='#F4F4F4', strokeColor=INK, strokeWidth=2, fontSize=9, fontColor='#1A1A1A', align='left', verticalAlign='middle', spacingLeft=6))
 DET = box(40, 1505, 220, 70, t('Detect', '비전 인식 팀 (YOLO)', sub=11), EXT)
 SM = box(40, 850, 220, 620, t('SERVER', '', '작업 지시', '결과 저장', '재방문 목록', '(remission_list)', 'B 작업 상태', sub=11), EXT)
 edge(SM, MON, '전달', color=RED, dashed=True, ex=0.5, ey=0, nx=round((150 - 40) / 268, 4), ny=1, font=10)
@@ -308,7 +308,7 @@ edge(LOGIC, SM, '/farm/robot_a/work_photo (352×352)<br>arrival · arrival_error
 
 # Robot A topics → System Monitor (monitoring team subscribes directly)
 PCB = [l for l in cells if 'PC  (원격 PC' in l][0].split('id="')[1].split('"')[0]
-edge(PCB, MON, '토픽<br>발행', color=BLUE, ex=0, ey=round((660 - 80) / 1780, 4), nx=1, ny=round((660 - 572) / 130, 4), font=9.5, lx=0, loff=(0, 0))
+edge(PCB, MON, '토픽<br>발행', color=BLUE, ex=0, ey=round((660 - 80) / 1780, 4), nx=1, ny=round((660 - 572) / 142, 4), font=9.5, lx=0, loff=(0, 0))
 edge(C3, MON, '', color=BLUE, ex=0.18, ey=1, nx=round((92 - 40) / 268, 4), ny=0, font=9.5, loff=(-2, 0))
 
 # SM <-> Detect

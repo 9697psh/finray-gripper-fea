@@ -70,5 +70,29 @@ for i, c in FC.items():
 for c in MR.iter('mxCell'):
     if c.get('id') == 'L_a1_c57':
         g = c.find('mxGeometry'); g.set('x', '430'); g.set('y', '801')
+# links that live outside the logic box in the detail design: System Monitor button → a_remission_list → robot B
+ids = {c.get('id'): c for c in MR.iter('mxCell')}
+mon = next(c.get('id') for c in MR.iter('mxCell') if 'System Monitor' in (c.get('value') or ''))
+rl = ids['L_a1_rlist']; g = rl.find('mxGeometry'); rx_, ry_, rw_, rh_ = (float(g.get(k)) for k in ('x', 'y', 'width', 'height'))
+def vtx(cid, x, y, w, h, val, st):
+    n = ET.SubElement(MR, 'mxCell', {'id': cid, 'value': val, 'style': st, 'vertex': '1', 'parent': '1'})
+    ET.SubElement(n, 'mxGeometry', {'x': str(x), 'y': str(y), 'width': str(w), 'height': str(h), 'as': 'geometry'})
+def edg(cid, s_, t_, ex, ey, nx, ny, pts, val, col, both=False, lx=0, loff=(0, 0)):
+    st = (f'edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor={col};strokeWidth=1.6;fontSize=9;fontColor={col};'
+          f'labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;exitX={ex};exitY={ey};entryX={nx};entryY={ny};exitPerimeter=0;entryPerimeter=0;')
+    if both: st += 'startArrow=block;startFill=1;'
+    n = ET.SubElement(MR, 'mxCell', {'id': cid, 'value': val, 'style': st, 'edge': '1', 'parent': '1', 'source': s_, 'target': t_})
+    gg = ET.SubElement(n, 'mxGeometry', {'relative': '1', 'as': 'geometry', 'x': str(lx)})
+    arr = ET.SubElement(gg, 'Array', {'as': 'points'})
+    for px, py in pts: ET.SubElement(arr, 'mxPoint', {'x': str(px), 'y': str(py)})
+    ET.SubElement(gg, 'mxPoint', {'x': str(loff[0]), 'y': str(loff[1]), 'as': 'offset'})
+vtx('RB', 40, 1600, 220, 70, '<b>로봇 B (PC2)</b><br><span style="font-size:10px">robot_b_follow_move<br>← /farm/robot_b/work_target<br>→ /farm/robot_b/arrival</span>',
+    'rounded=0;whiteSpace=wrap;html=1;fillColor=#F4F4F4;strokeColor=#333333;strokeWidth=2;fontSize=12;fontColor=#1A1A1A;')
+mg = ids[mon].find('mxGeometry'); mx, my, mw, mh = (float(mg.get(k)) for k in ('x', 'y', 'width', 'height'))
+y1, y2 = ry_ + rh_ * 0.71, ry_ + rh_ * 0.9
+edg('E_force_next', mon, 'L_a1_rlist', 1, round((690 - my) / mh, 4), 0, round((y1 - ry_) / rh_, 4), [(335, 690), (335, y1)],
+    'force_next_sector', '#D62728', lx=0.72, loff=(0, 8))
+edg('E_b_link', 'L_a1_rlist', 'RB', 0, round((y2 - ry_) / rh_, 4), 1, round((1631 - 1600) / 70, 4), [(348, y2), (348, 1631)],
+    'work_target → / ← arrival', '#1F5FD6', both=True, lx=-0.62, loff=(0, 9))
 T.write(OUT, encoding='utf-8', xml_declaration=False)
 print('removed', len(logic), 'logic vertices · added', n_v, 'vertices', n_e, 'edges · pc1logic origin', OX, OY)
